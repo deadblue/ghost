@@ -1,6 +1,6 @@
 # Ghost 👻
 
-![Version](https://img.shields.io/badge/release-v0.0.1-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/Release-v0.0.1-brightgreen?style=flat-square)
 ![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 
 A simple HTTP server framework in Go, without any third-party dependencies.
@@ -48,6 +48,29 @@ func (g *YourGhost) BuyMeACoffee(_ ghost.Context) (ghost.View, error) {
 	return view.Text("Thank you!"), nil
 }
 
+// Implement ghost.Binder interface, to speed up the controller invoking.
+func (g *YourGhost) Bind(v interface{}) ghost.Controller {
+	if fn, ok := v.(func(*YourGhost, ghost.Context)(ghost.View, error)); ok {
+		return func(ctx ghost.Context)(ghost.View, error) {
+			return fn(g, ctx)
+        }
+    } else {
+    	return nil
+    }
+}
+
+// Implement ghost.AwareStartup interface, to initialize your ghost before shell running.
+func (g *YourGhost) OnStartup() error {
+	// Initializing  ...
+	return nil
+}
+
+// Implement ghost.AwareShutdown interface, to finalize your ghost after shell shutdown.
+func (g *YourGhost) OnShutdown() error { 
+	// Finalizing ...
+	return nil
+}
+
 func main() {
 	err := ghost.Born(&YourGhost{}).Run()
     if err != nil {
@@ -56,7 +79,7 @@ func main() {
 }
 ```
 
-## Specification
+## Mechanism
 
 All methods on the ghost object, which is in form of the `ghost.Controller`, will be mounted as a request handler. 
 
