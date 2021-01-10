@@ -13,8 +13,10 @@ type AwareShutdown interface {
 }
 
 /*
-Binder is an optional interface, if developer implements it on his ghost, he will
-get 50x speedup on controller invoking.
+Binder is an optional interface, if developer implements it on his ghost, the controller
+invoking will be 50x faster.
+
+Benchmark: https://gist.github.com/deadblue/b232340144acd20f48d38602fd628a1b#file-benchmark_test-go
 
 A standard implementation looks like this:
 

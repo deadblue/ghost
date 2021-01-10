@@ -37,7 +37,7 @@ func (g *YourGhost) GetDataById(ctx ghost.Context) (ghost.View, error) {
     return view.Text("Getting data whose id is " + dataId), nil
 }
 
-// PostForm will handle request "POST /update" 
+// PostUpdate will handle request "POST /update" 
 func (g *YourGhost) PostUpdate(ctx ghost.Context) (ghost.View, error) {
     // Get post data from ctx.Request()
     return view.Text("Update done!"), nil

@@ -32,11 +32,6 @@ type Shell interface {
 }
 
 // Context describes the request context.
-// TODO:
-//  Currently, I have no idea what methods should Context provide.
-//  I will add more methods in future when I think it need.
-//  Anyway, you can call Request() to retrieve the original request, and
-//  get information from it.
 type Context interface {
 
 	// Request returns the original HTTP request object.
