@@ -10,10 +10,10 @@ import (
 )
 
 type _Kernel struct {
-	// Route tree
-	rt *_RouteTree
-	// The ghost
+	// The ghost given by developer
 	g interface{}
+	// Route tree
+	rt *_RouteTable
 }
 
 func (k *_Kernel) BeforeStartup() (err error) {
@@ -51,8 +51,9 @@ func (k *_Kernel) defaultView() View {
 
 func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 	// Initial kernel
-	k.g, k.rt = ghost, &_RouteTree{
-		bs: make(map[string]*_RouteBranch),
+	k.g, k.rt = ghost, &_RouteTable{
+		mapping:  make(map[_RouteKey]Controller),
+		branches: make(map[string][]*_RoutePath),
 	}
 	// Scan controller
 	binder, hasBinder := ghost.(Binder)
