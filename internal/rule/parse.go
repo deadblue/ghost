@@ -83,14 +83,11 @@ type _Parser struct {
 }
 
 func (p *_Parser) Parse() (rule *Rule, err error) {
-	count := len(p.words)
-	if count == 1 {
-		return nil, nil
-	}
 	// Initial variables
 	segments := make([]*_SegmentRule, 0)
 	last, state := 0, stateInit
 	// Scan words
+	count := len(p.words)
 	for i := 0; i <= count; i++ {
 		// Select word and token
 		word, token := "", tokenEos
@@ -149,7 +146,7 @@ func (p *_Parser) makeSegment(from, to int) (seg *_SegmentRule) {
 	// Always set value for debugging
 	seg.value = buf.String()
 	if hasVar {
-		seg.pattern = regexp.MustCompile(seg.value)
+		seg.pattern = regexp.MustCompile("^" + seg.value + "$")
 	}
 	return
 }

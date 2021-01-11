@@ -23,9 +23,9 @@ type Rule struct {
 	srs []*_SegmentRule
 }
 
-// Match tests is the given path matches the rule, and return the match score.
-// The higher score means more exactly matching occurs, and the negative score means mismatching,
-func (r *Rule) Match(path string, vars map[string]string) int {
+// Match tests does the given path match the rule, returns the matching score.
+// The higher score means more exactly matching occurs, and the negative score means mismatching.
+func (r *Rule) Match(path string, vars map[string]string) (score int) {
 	// Split URL path into segments
 	runes, segments := []rune(path), make([]string, 0)
 	last, count := -1, len(runes)
@@ -45,7 +45,6 @@ func (r *Rule) Match(path string, vars map[string]string) int {
 	if len(segments) != r.depth {
 		return -1
 	}
-	score := 0
 	for i := 0; i < r.depth; i++ {
 		if sr := r.srs[i]; sr.pattern == nil {
 			if sr.value == segments[i] {
@@ -65,13 +64,28 @@ func (r *Rule) Match(path string, vars map[string]string) int {
 			}
 		}
 	}
-	return score
+	return
+}
+
+func (r *Rule) Path() (path string, exactly bool) {
+	path, exactly = "/", true
+	if r.depth > 0 {
+		sb := &strings.Builder{}
+		for _, sr := range r.srs {
+			if sr.pattern != nil {
+				exactly = false
+			}
+			sb.WriteString("/" + sr.value)
+		}
+		path = sb.String()
+	}
+	return
 }
 
 /*
 Parse parses a method name into route rule.
 
-The method name should be in Camel-Case, consists of several words.
+The method name should be in camel-case, consists of several words.
 The first word will be treated as request method name, such as "Get", "Post", etc.
 The following words will be treated as path segments, e.g. "UserData" will map to "/user/data".
 And there are some special keywords for special usage, please check the reference.
@@ -91,8 +105,11 @@ func Parse(name string) (method string, rule *Rule, err error) {
 	}
 	method = words[0]
 	if len(words) > 1 {
-		parser := &_Parser{words: words[1:]}
-		rule, err = parser.Parse()
+		rule, err = (&_Parser{words: words[1:]}).Parse()
+	} else {
+		rule = &Rule{
+			depth: 0,
+		}
 	}
 	return
 }
