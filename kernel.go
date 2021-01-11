@@ -44,6 +44,11 @@ func (k *_Kernel) handleError(err error) View {
 	return view.InternalError(err)
 }
 
+// defaultView returns HTTP 200 empty view.
+func (k *_Kernel) defaultView() View {
+	return view.Status200
+}
+
 func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 	// Initial kernel
 	k.g, k.rt = ghost, &_RouteTree{
@@ -122,6 +127,8 @@ func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
 	if err != nil {
 		v = k.handleError(err)
 	}
-	// TODO: Double check the v, to make sure it is NOT nil.
+	if v == nil {
+		v = k.defaultView()
+	}
 	return
 }

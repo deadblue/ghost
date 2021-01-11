@@ -6,16 +6,16 @@ import (
 	"strings"
 )
 
-type View404 struct {
+type Status404 struct {
 	impl
 }
 
-func (v View404) Status() int {
+func (v Status404) Status() int {
 	return http.StatusNotFound
 }
 
-func NotFound(method, path string) View404 {
+func NotFound(method, path string) Status404 {
 	message := fmt.Sprintf("No Route To: %s %s",
 		strings.ToUpper(method), path)
-	return View404{impl(message)}
+	return Status404{impl(message)}
 }

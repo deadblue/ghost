@@ -5,15 +5,15 @@ import (
 	"net/http"
 )
 
-type View500 struct {
+type Status500 struct {
 	impl
 }
 
-func (v View500) Status() int {
+func (v Status500) Status() int {
 	return http.StatusInternalServerError
 }
 
-func InternalError(err error) View500 {
+func InternalError(err error) Status500 {
 	message := fmt.Sprintf("Internal Error: %s", err.Error())
-	return View500{impl(message)}
+	return Status500{impl(message)}
 }
