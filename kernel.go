@@ -16,7 +16,7 @@ type _Kernel struct {
 	g interface{}
 }
 
-func (k *_Kernel) beforeStartup() (err error) {
+func (k *_Kernel) BeforeStartup() (err error) {
 	if k.g != nil {
 		if a, ok := k.g.(AwareStartup); ok {
 			err = a.OnStartup()
@@ -25,7 +25,7 @@ func (k *_Kernel) beforeStartup() (err error) {
 	return
 }
 
-func (k *_Kernel) afterShutdown() (err error) {
+func (k *_Kernel) AfterShutdown() (err error) {
 	if k.g != nil {
 		if a, ok := k.g.(AwareShutdown); ok {
 			err = a.OnShutdown()
