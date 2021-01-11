@@ -27,6 +27,12 @@ func (c *_ContextImpl) Query(name string) string {
 	return c.qs.Get(name)
 }
 
+// TODO:
+//  Currently, I have no idea what methods should Context provide.
+//  I will add more methods in future when I think it need.
+//  Anyway, you can call Request() to retrieve the original request, and
+//  get information from it.
+
 // fromRequest makes a Context from http request.
 func fromRequest(r *http.Request) *_ContextImpl {
 	return &_ContextImpl{

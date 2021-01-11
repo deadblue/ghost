@@ -69,6 +69,9 @@ var (
 		{stateVar, tokenKwAs}: func() (_ParseState, bool) {
 			return stateKwAs, false
 		},
+		{stateVar, tokenKwBy}: func() (_ParseState, bool) {
+			return stateKwBy, true
+		},
 		{stateVar, tokenEos}: func() (_ParseState, bool) {
 			return stateInit, true
 		},
@@ -107,12 +110,11 @@ func (p *_Parser) Parse() (rule *Rule, err error) {
 			err = fmt.Errorf("unexpected word: %s", word)
 			break
 		} else {
-			next, flushBuf := tf()
-			if flushBuf {
+			flushBuf := false
+			if state, flushBuf = tf(); flushBuf {
 				segments = append(segments, p.makeSegment(last, i))
 				last = i
 			}
-			state = next
 		}
 	}
 	if err == nil {

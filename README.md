@@ -1,6 +1,6 @@
 # Ghost 👻
 
-![Version](https://img.shields.io/badge/release-v0.0.1-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/Release-v0.0.1-brightgreen?style=flat-square)
 ![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 
 A simple HTTP server framework in Go, without any third-party dependencies.
@@ -15,8 +15,8 @@ All you need to do, is to make an interesting ghost, then run it.
 package main
 
 import (
-	"github.com/deadblue/ghost"
-	"github.com/deadblue/ghost/view"
+    "github.com/deadblue/ghost"
+    "github.com/deadblue/ghost/view"
 )
 
 type YourGhost struct{}
@@ -28,35 +28,58 @@ func (g *YourGhost) Get(_ ghost.Context) (ghost.View, error) {
 
 // GetIndexAsHtml will handle request "GET /index.html"
 func (g *YourGhost) GetIndexAsHtml(_ ghost.Context) (ghost.View, error) {
-	return view.Text("index.html"), nil
+    return view.Text("index.html"), nil
 }
 
 // GetDataById will handle request "GET /data/{id}", where the "id" is a path variable.
 func (g *YourGhost) GetDataById(ctx ghost.Context) (ghost.View, error) {
-	dataId := ctx.PathVar("id")
-	return view.Text("Getting data whose id is " + dataId), nil
+    dataId := ctx.PathVar("id")
+    return view.Text("Getting data whose id is " + dataId), nil
 }
 
-// PostForm will handle request "POST /update" 
+// PostUpdate will handle request "POST /update" 
 func (g *YourGhost) PostUpdate(ctx ghost.Context) (ghost.View, error) {
-	// Get post data from ctx.Request()
-	return view.Text("Update done!"), nil
+    // Get post data from ctx.Request()
+    return view.Text("Update done!"), nil
 }
 
 // BuyMeACoffee will handle request "BUY /me/a/coffee"
 func (g *YourGhost) BuyMeACoffee(_ ghost.Context) (ghost.View, error) {
-	return view.Text("Thank you!"), nil
+    return view.Text("Thank you!"), nil
+}
+
+// Implement ghost.Binder interface, to speed up the controller invoking.
+func (g *YourGhost) Bind(v interface{}) ghost.Controller {
+    if fn, ok := v.(func(*YourGhost, ghost.Context)(ghost.View, error)); ok {
+        return func(ctx ghost.Context)(ghost.View, error) {
+            return fn(g, ctx)
+        }
+    } else {
+        return nil
+    }
+}
+
+// Implement ghost.AwareStartup interface, to initialize your ghost before shell running.
+func (g *YourGhost) OnStartup() error {
+    // Initializing  ...
+    return nil
+}
+
+// Implement ghost.AwareShutdown interface, to finalize your ghost after shell shutdown.
+func (g *YourGhost) OnShutdown() error { 
+    // Finalizing ...
+    return nil
 }
 
 func main() {
-	err := ghost.Born(&YourGhost{}).Run()
+    err := ghost.Born(&YourGhost{}).Run()
     if err != nil {
-    	panic(err)
+        panic(err)
     }
 }
 ```
 
-## Specification
+## Mechanism
 
 All methods on the ghost object, which is in form of the `ghost.Controller`, will be mounted as a request handler. 
 
