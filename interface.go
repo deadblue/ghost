@@ -1,15 +1,27 @@
 package ghost
 
-// AwareStartup is an optional interface, when developer need do some initialization
+// StartupHandler is an optional interface, when developer need do some initialization
 // on his ghost, implements this, and do initialization in OnStartup().
-type AwareStartup interface {
+type StartupHandler interface {
 	OnStartup() error
 }
 
-// AwareShutdown is an optional interface, when developer need do some finalization
+// ShutdownHandler is an optional interface, when developer need do some finalization
 // on his ghost, implements this, and do finalization in OnShutdown().
-type AwareShutdown interface {
+type ShutdownHandler interface {
 	OnShutdown() error
+}
+
+// Http404Handler is an optional interface, when developer wants to return a customized
+// view on HTTP 404 error, implement this on his ghost.
+type Http404Handler interface {
+	OnHttp404(method, path string) View
+}
+
+// Http500Handler is an optional interface, when developer wants to return a customized
+// view on HTTP 500 error, implement this on his ghost.
+type Http500Handler interface {
+	OnHttp500(err error) View
 }
 
 /*
