@@ -72,11 +72,9 @@ type View interface {
 	// HTTP status code
 	Status() int
 
-	// Response headers
-	Header() http.Header
-
 	// Response body
 	Body() io.Reader
 }
 
+// Controller is a function to handle request.
 type Controller func(ctx Context) (v View, err error)

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 )
 
 type _Kernel struct {
@@ -18,6 +19,8 @@ type _Kernel struct {
 
 	// HTTP status handler
 	hsh HttpStatusHandler
+	// Ghost header interceptor
+	ghi HeaderInterceptor
 }
 
 func (k *_Kernel) BeforeStartup() (err error) {
@@ -44,10 +47,15 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 		mapping:  make(map[_RouteKey]Controller),
 		branches: make(map[string][]*_RoutePath),
 	}
-	if h, ok := ghost.(HttpStatusHandler); ok {
-		k.hsh = h
+	// Setup HTTP status handler
+	if sh, ok := ghost.(HttpStatusHandler); ok {
+		k.hsh = sh
 	} else {
 		k.hsh = defaultStatusHandler
+	}
+	// Setup global header interceptor
+	if hi, ok := ghost.(HeaderInterceptor); ok {
+		k.ghi = hi
 	}
 	// Scan controller
 	binder, hasBinder := ghost.(Binder)
@@ -111,18 +119,25 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 		v = k.defaultView()
 	}
 	// Send response header
-	hdr := w.Header()
-	hdr.Set("Server", _HeaderServer)
-	if vh := v.Header(); vh != nil {
-		for key, vals := range v.Header() {
-			for _, val := range vals {
-				hdr.Add(key, val)
-			}
+	headers, body := w.Header(), v.Body()
+	headers.Set("Server", _HeaderServer)
+	// Auto detect content length
+	if body != nil {
+		if l, ok := body.(hasLength); ok {
+			headers.Set("Content-Length", strconv.Itoa(l.Len()))
 		}
+	}
+	// Allow view manipulates response header
+	if hi, ok := v.(HeaderInterceptor); ok {
+		hi.BeforeSend(headers)
+	}
+	// Allow ghost manipulates response header
+	if k.ghi != nil {
+		k.ghi.BeforeSend(headers)
 	}
 	w.WriteHeader(v.Status())
 	// Send response body
-	if body := v.Body(); body != nil {
+	if body != nil {
 		// Auto close the closable body
 		if c, ok := body.(io.Closer); ok {
 			defer func() {
@@ -138,5 +153,9 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 
 // defaultView returns HTTP 200 empty view.
 func (k *_Kernel) defaultView() View {
-	return view.Status200
+	return view.Http200
+}
+
+type hasLength interface {
+	Len() int
 }

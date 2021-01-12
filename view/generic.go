@@ -14,53 +14,60 @@ type GenericView struct {
 	body   io.Reader
 }
 
-func (v *GenericView) Status() int {
-	return v.status
+func (gv *GenericView) Status() int {
+	return gv.status
 }
 
-func (v *GenericView) Header() http.Header {
-	return v.header
+func (gv *GenericView) Body() io.Reader {
+	return gv.body
 }
 
-func (v *GenericView) Body() io.Reader {
-	return v.body
+func (gv *GenericView) BeforeSend(h http.Header) {
+	// Pouring stored headers
+	if gv.header != nil {
+		for k, vs := range gv.header {
+			for _, v := range vs {
+				h.Add(k, v)
+			}
+		}
+	}
 }
 
-func (v *GenericView) ContentType(mimeType string) *GenericView {
-	v.header.Set("Content-Type", mimeType)
-	return v
+func (gv *GenericView) ContentType(mimeType string) *GenericView {
+	gv.header.Set("Content-Type", mimeType)
+	return gv
 }
 
-func (v *GenericView) ContentLength(length int) *GenericView {
-	v.header.Set("Content-Length", strconv.Itoa(length))
-	return v
+func (gv *GenericView) ContentLength(length int) *GenericView {
+	gv.header.Set("Content-Length", strconv.Itoa(length))
+	return gv
 }
 
-func (v *GenericView) ContentLength64(length int64) *GenericView {
-	v.header.Set("Content-Length", strconv.FormatInt(length, 10))
-	return v
+func (gv *GenericView) ContentLength64(length int64) *GenericView {
+	gv.header.Set("Content-Length", strconv.FormatInt(length, 10))
+	return gv
 }
 
-func (v *GenericView) PrivateCache(age time.Duration) *GenericView {
-	v.header.Set("Cache-Control", fmt.Sprintf(
+func (gv *GenericView) PrivateCache(age time.Duration) *GenericView {
+	gv.header.Set("Cache-Control", fmt.Sprintf(
 		"private, max-age=%d", int64(age.Seconds())))
-	return v
+	return gv
 }
 
-func (v *GenericView) PublicCache(age time.Duration) *GenericView {
-	v.header.Set("Cache-Control", fmt.Sprintf(
+func (gv *GenericView) PublicCache(age time.Duration) *GenericView {
+	gv.header.Set("Cache-Control", fmt.Sprintf(
 		"public, max-age=%d", int64(age.Seconds())))
-	return v
+	return gv
 }
 
-func (v *GenericView) DisableCache() *GenericView {
-	v.header.Set("Cache-Control", "no-store")
-	return v
+func (gv *GenericView) DisableCache() *GenericView {
+	gv.header.Set("Cache-Control", "no-store")
+	return gv
 }
 
-func (v *GenericView) AddHeader(name, value string) *GenericView {
-	v.header.Add(name, value)
-	return v
+func (gv *GenericView) AddHeader(name, value string) *GenericView {
+	gv.header.Add(name, value)
+	return gv
 }
 
 // Generic returns a GenericView, which has a lot of methods to setup the response headers.

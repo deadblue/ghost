@@ -1,5 +1,7 @@
 package ghost
 
+import "net/http"
+
 // StartupHandler is an optional interface, when developer need do some initialization
 // on his ghost, implements this, and do initialization in OnStartup().
 type StartupHandler interface {
@@ -18,6 +20,15 @@ type HttpStatusHandler interface {
 
 	// OnStatus will be called when HTTP 40x and 50x error occurred.
 	OnStatus(status int, context Context, err error) View
+}
+
+// HeaderInterceptor is an interface that can optionally implement by View and developer's
+// ghost. It will be called after kernel sets normal response headers, developer can manipulate
+// response header here.
+type HeaderInterceptor interface {
+
+	// BeforeSend will be called before kernel send response headers to client.
+	BeforeSend(h http.Header)
 }
 
 /*

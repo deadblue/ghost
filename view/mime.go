@@ -6,7 +6,6 @@ import (
 	"github.com/deadblue/ghost"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -16,15 +15,12 @@ func (v Text) Status() int {
 	return http.StatusOK
 }
 
-func (v Text) Header() http.Header {
-	hdr := http.Header{}
-	hdr.Set("Content-Type", "text/plain;charset=utf-8")
-	hdr.Set("Content-Length", strconv.Itoa(len(([]byte)(v))))
-	return hdr
-}
-
 func (v Text) Body() io.Reader {
 	return strings.NewReader(string(v))
+}
+
+func (v Text) BeforeSend(h http.Header) {
+	h.Set("Content-Type", "text/plain;charset=utf-8")
 }
 
 func Json(data interface{}) (v ghost.View, err error) {
@@ -33,7 +29,6 @@ func Json(data interface{}) (v ghost.View, err error) {
 		return
 	}
 	v = Generic(http.StatusOK, bytes.NewReader(body)).
-		ContentType("application/json;charset=utf-8").
-		ContentLength(len(body))
+		ContentType("application/json;charset=utf-8")
 	return
 }
