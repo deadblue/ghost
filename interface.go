@@ -12,21 +12,17 @@ type ShutdownHandler interface {
 	OnShutdown() error
 }
 
-// Http404Handler is an optional interface, when developer wants to return a customized
-// view on HTTP 404 error, implement this on his ghost.
-type Http404Handler interface {
-	OnHttp404(method, path string) View
-}
+// HttpStatusHandler is an optional interface, when developer wants to customize the
+// error view, implement this on his ghost.
+type HttpStatusHandler interface {
 
-// Http500Handler is an optional interface, when developer wants to return a customized
-// view on HTTP 500 error, implement this on his ghost.
-type Http500Handler interface {
-	OnHttp500(err error) View
+	// OnStatus will be called when HTTP 40x and 50x error occurred.
+	OnStatus(status int, context Context, err error) View
 }
 
 /*
-Binder is an optional interface, if developer implements it on his ghost, the controller
-invoking will be 50x faster.
+Binder is an optional interface, but it is highly recommended developer to implement this, to
+speed up the controller invocation.
 
 Benchmark: https://gist.github.com/deadblue/b232340144acd20f48d38602fd628a1b#file-benchmark_test-go
 

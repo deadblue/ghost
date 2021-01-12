@@ -16,16 +16,14 @@ type _Kernel struct {
 	// Route tree
 	rt *_RouteTable
 
-	// HTTP 404 handler
-	h404 Http404Handler
-	// HTTP 500 handler
-	h500 Http500Handler
+	// HTTP status handler
+	hsh HttpStatusHandler
 }
 
 func (k *_Kernel) BeforeStartup() (err error) {
 	if k.g != nil {
-		if a, ok := k.g.(StartupHandler); ok {
-			err = a.OnStartup()
+		if h, ok := k.g.(StartupHandler); ok {
+			err = h.OnStartup()
 		}
 	}
 	return
@@ -33,16 +31,11 @@ func (k *_Kernel) BeforeStartup() (err error) {
 
 func (k *_Kernel) AfterShutdown() (err error) {
 	if k.g != nil {
-		if a, ok := k.g.(ShutdownHandler); ok {
-			err = a.OnShutdown()
+		if h, ok := k.g.(ShutdownHandler); ok {
+			err = h.OnShutdown()
 		}
 	}
 	return
-}
-
-// defaultView returns HTTP 200 empty view.
-func (k *_Kernel) defaultView() View {
-	return view.Status200
 }
 
 func (k *_Kernel) Install(ghost interface{}) *_Kernel {
@@ -51,13 +44,10 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 		mapping:  make(map[_RouteKey]Controller),
 		branches: make(map[string][]*_RoutePath),
 	}
-	dh := defaultStatusHandler{}
-	k.h404, k.h500 = dh, dh
-	if h404, ok := ghost.(Http404Handler); ok {
-		k.h404 = h404
-	}
-	if h500, ok := ghost.(Http500Handler); ok {
-		k.h500 = h500
+	if h, ok := ghost.(HttpStatusHandler); ok {
+		k.hsh = h
+	} else {
+		k.hsh = defaultStatusHandler
 	}
 	// Scan controller
 	binder, hasBinder := ghost.(Binder)
@@ -86,13 +76,41 @@ func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
 	ctx := context.FromRequest(r)
 	// Resolve controller
-	ctrl, v := k.rt.Resolve(r, ctx), View(nil)
+	ctrl, v := k.rt.Resolve(ctx), View(nil)
+	// Invoke controller
 	if ctrl == nil {
-		v = k.h404.OnHttp404(r.Method, r.URL.Path)
+		v = k.hsh.OnStatus(http.StatusNotFound, ctx, nil)
 	} else {
 		v = k.invoke(ctrl, ctx)
 	}
-	// Render view to response
+	// Render view
+	k.render(v, w)
+}
+
+func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
+	defer func() {
+		// Catch panic here
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, err)
+			} else {
+				v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
+			}
+		}
+	}()
+	v, err := ctrl(ctx)
+	if err != nil {
+		v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, err)
+	}
+	return
+}
+
+func (k *_Kernel) render(v View, w http.ResponseWriter) {
+	// Ensure the view is not nil
+	if v == nil {
+		v = k.defaultView()
+	}
+	// Send response header
 	hdr := w.Header()
 	hdr.Set("Server", _HeaderServer)
 	if vh := v.Header(); vh != nil {
@@ -103,6 +121,7 @@ func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(v.Status())
+	// Send response body
 	if body := v.Body(); body != nil {
 		// Auto close the closable body
 		if c, ok := body.(io.Closer); ok {
@@ -117,33 +136,7 @@ func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
-	defer func() {
-		// Catch panic
-		if r := recover(); r != nil {
-			if err, ok := r.(error); ok {
-				v = k.h500.OnHttp500(err)
-			} else {
-				v = k.h500.OnHttp500(fmt.Errorf("panic: %v", r))
-			}
-		}
-	}()
-	v, err := ctrl(ctx)
-	if err != nil {
-		v = k.h500.OnHttp500(err)
-	}
-	if v == nil {
-		v = k.defaultView()
-	}
-	return
-}
-
-type defaultStatusHandler struct{}
-
-func (h defaultStatusHandler) OnHttp404(method, path string) View {
-	return view.NotFound(method, path)
-}
-
-func (h defaultStatusHandler) OnHttp500(err error) View {
-	return view.InternalError(err)
+// defaultView returns HTTP 200 empty view.
+func (k *_Kernel) defaultView() View {
+	return view.Status200
 }

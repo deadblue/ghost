@@ -4,8 +4,6 @@ import (
 	"github.com/deadblue/ghost/internal/context"
 	"github.com/deadblue/ghost/internal/rule"
 	"log"
-	"net/http"
-	"strings"
 )
 
 type _RouteKey struct {
@@ -52,9 +50,9 @@ func (t *_RouteTable) Mount(name string, ctrl Controller) (err error) {
 	return
 }
 
-func (t *_RouteTable) Resolve(r *http.Request, ctx *context.Impl) (ctrl Controller) {
+func (t *_RouteTable) Resolve(ctx *context.Impl) (ctrl Controller) {
 	// Get request method and path
-	rm, rp := strings.ToLower(r.Method), r.URL.Path
+	rm, rp := ctx.MethodAndPath()
 	// First search exactly matching
 	exists := false
 	if ctrl, exists = t.mapping[_RouteKey{rm, rp}]; exists {
