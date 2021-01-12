@@ -7,6 +7,8 @@ A simple HTTP server framework in Go, without any third-party dependencies.
 
 Use it ONLY when you seek for simpleness, and do not extremely eager for performance and robustness.
 
+**This framework is W.I.P., so the APIs are volatile, and there may be some unknown bugs in it.**
+
 ## Usage
 
 All you need to do, is to make an interesting ghost, then run it.
