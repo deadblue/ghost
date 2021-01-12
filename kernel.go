@@ -2,6 +2,7 @@ package ghost
 
 import (
 	"fmt"
+	"github.com/deadblue/ghost/internal/context"
 	"github.com/deadblue/ghost/internal/view"
 	"io"
 	"log"
@@ -83,7 +84,7 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 
 func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
-	ctx := fromRequest(r)
+	ctx := context.FromRequest(r)
 	// Resolve controller
 	ctrl, v := k.rt.Resolve(r, ctx), View(nil)
 	if ctrl == nil {

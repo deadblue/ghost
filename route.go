@@ -1,6 +1,7 @@
 package ghost
 
 import (
+	"github.com/deadblue/ghost/internal/context"
 	"github.com/deadblue/ghost/internal/rule"
 	"log"
 	"net/http"
@@ -51,7 +52,7 @@ func (t *_RouteTable) Mount(name string, ctrl Controller) (err error) {
 	return
 }
 
-func (t *_RouteTable) Resolve(r *http.Request, ctx *_ContextImpl) (ctrl Controller) {
+func (t *_RouteTable) Resolve(r *http.Request, ctx *context.Impl) (ctrl Controller) {
 	// Get request method and path
 	rm, rp := strings.ToLower(r.Method), r.URL.Path
 	// First search exactly matching
@@ -76,7 +77,7 @@ func (t *_RouteTable) Resolve(r *http.Request, ctx *_ContextImpl) (ctrl Controll
 	}
 	if maxScore >= 0 {
 		for k, v := range pathVars {
-			ctx.pv[k] = v
+			ctx.PutPathVar(k, v)
 		}
 	}
 	return

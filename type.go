@@ -40,6 +40,9 @@ type Context interface {
 	// PathVar return the variable value in request path.
 	PathVar(name string) string
 
+	// Header returns a value in request header with given name.
+	Header(name string) string
+
 	// Query returns the parameter value in query string.
 	Query(name string) string
 }
