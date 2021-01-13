@@ -31,6 +31,18 @@ type HeaderInterceptor interface {
 	BeforeSend(h http.Header)
 }
 
+// ViewAdviseType is an optional interface for View, when a view implements it, kernel will get
+// content type from it, and set to response header as "Content-Type".
+type ViewAdviseType interface {
+	ContentType() string
+}
+
+// ViewAdviseSize is an optional interface for View, when a view implements it, kernel will get
+// content size from it, and set to response header as "Content-Length".
+type ViewAdviseSize interface {
+	ContentLength() int64
+}
+
 /*
 Binder is an optional interface, but it is highly recommended developer to implement this, to
 speed up the controller invocation.

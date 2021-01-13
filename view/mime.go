@@ -19,8 +19,8 @@ func (v Text) Body() io.Reader {
 	return strings.NewReader(string(v))
 }
 
-func (v Text) BeforeSend(h http.Header) {
-	h.Set("Content-Type", "text/plain;charset=utf-8")
+func (v Text) ContentType() string {
+	return "text/plain;charset=utf-8"
 }
 
 func Json(data interface{}) (v ghost.View, err error) {

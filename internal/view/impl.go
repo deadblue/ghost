@@ -16,6 +16,6 @@ func (i impl) Body() io.Reader {
 	return strings.NewReader(string(i))
 }
 
-func (i impl) BeforeSend(h http.Header) {
-	h.Set("Content-Type", "text/plain;charset=utf-8")
+func (i impl) ContentType() string {
+	return "text/plain;charset=utf-8"
 }

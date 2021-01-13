@@ -121,9 +121,16 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 	// Send response header
 	headers, body := w.Header(), v.Body()
 	headers.Set("Server", _HeaderServer)
-	// Auto detect content length
 	if body != nil {
-		if l, ok := body.(hasLength); ok {
+		// Get content type from view
+		if vat, ok := v.(ViewAdviseType); ok {
+			headers.Set("Content-Type", vat.ContentType())
+		}
+		// Get content length from view
+		if vas, ok := v.(ViewAdviseSize); ok {
+			headers.Set("Content-Length", strconv.FormatInt(vas.ContentLength(), 10))
+		} else if l, ok := body.(hasLength); ok {
+			// Auto detect content length
 			headers.Set("Content-Length", strconv.Itoa(l.Len()))
 		}
 	}

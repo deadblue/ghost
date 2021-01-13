@@ -33,8 +33,8 @@ func (gv *GenericView) BeforeSend(h http.Header) {
 	}
 }
 
-func (gv *GenericView) ContentType(mimeType string) *GenericView {
-	gv.header.Set("Content-Type", mimeType)
+func (gv *GenericView) ContentType(ct string) *GenericView {
+	gv.header.Set("Content-Type", ct)
 	return gv
 }
 

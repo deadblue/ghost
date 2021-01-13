@@ -83,7 +83,7 @@ func main() {
 
 ## Mechanism
 
-Each method on the ghost object, which is in form of the `ghost.Controller`, will be mounted as a request handler. 
+Each method on the ghost object, which is in form of `ghost.Controller`, will be mounted as a request handler. 
 
 The method name, will be translated as the mount path, following these rules:
 
