@@ -1,3 +1,3 @@
 package view
 
-var Status200 = impl("")
+var Http200 = impl("")

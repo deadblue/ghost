@@ -2,11 +2,13 @@ package ghost
 
 import (
 	"fmt"
+	"github.com/deadblue/ghost/internal/context"
 	"github.com/deadblue/ghost/internal/view"
 	"io"
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 )
 
 type _Kernel struct {
@@ -14,12 +16,17 @@ type _Kernel struct {
 	g interface{}
 	// Route tree
 	rt *_RouteTable
+
+	// HTTP status handler
+	hsh HttpStatusHandler
+	// Ghost header interceptor
+	ghi HeaderInterceptor
 }
 
 func (k *_Kernel) BeforeStartup() (err error) {
 	if k.g != nil {
-		if a, ok := k.g.(AwareStartup); ok {
-			err = a.OnStartup()
+		if h, ok := k.g.(StartupHandler); ok {
+			err = h.OnStartup()
 		}
 	}
 	return
@@ -27,26 +34,11 @@ func (k *_Kernel) BeforeStartup() (err error) {
 
 func (k *_Kernel) AfterShutdown() (err error) {
 	if k.g != nil {
-		if a, ok := k.g.(AwareShutdown); ok {
-			err = a.OnShutdown()
+		if h, ok := k.g.(ShutdownHandler); ok {
+			err = h.OnShutdown()
 		}
 	}
 	return
-}
-
-func (k *_Kernel) handleFallback(method, path string) View {
-	// TODO: Allow developer to handle this
-	return view.NotFound(method, path)
-}
-
-func (k *_Kernel) handleError(err error) View {
-	// TODO: Allow developer to handle this
-	return view.InternalError(err)
-}
-
-// defaultView returns HTTP 200 empty view.
-func (k *_Kernel) defaultView() View {
-	return view.Status200
 }
 
 func (k *_Kernel) Install(ghost interface{}) *_Kernel {
@@ -54,6 +46,16 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 	k.g, k.rt = ghost, &_RouteTable{
 		mapping:  make(map[_RouteKey]Controller),
 		branches: make(map[string][]*_RoutePath),
+	}
+	// Setup HTTP status handler
+	if sh, ok := ghost.(HttpStatusHandler); ok {
+		k.hsh = sh
+	} else {
+		k.hsh = defaultStatusHandler
+	}
+	// Setup global header interceptor
+	if hi, ok := ghost.(HeaderInterceptor); ok {
+		k.ghi = hi
 	}
 	// Scan controller
 	binder, hasBinder := ghost.(Binder)
@@ -80,26 +82,69 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 
 func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
-	ctx := fromRequest(r)
+	ctx := context.FromRequest(r)
 	// Resolve controller
-	ctrl, v := k.rt.Resolve(r, ctx), View(nil)
+	ctrl, v := k.rt.Resolve(ctx), View(nil)
+	// Invoke controller
 	if ctrl == nil {
-		v = k.handleFallback(r.Method, r.URL.Path)
+		v = k.hsh.OnStatus(http.StatusNotFound, ctx, nil)
 	} else {
 		v = k.invoke(ctrl, ctx)
 	}
-	// Render view to response
-	hdr := w.Header()
-	hdr.Set("Server", _HeaderServer)
-	if vh := v.Header(); vh != nil {
-		for key, vals := range v.Header() {
-			for _, val := range vals {
-				hdr.Add(key, val)
+	// Render view
+	k.render(v, w)
+}
+
+func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
+	defer func() {
+		// Catch panic here
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, err)
+			} else {
+				v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
 			}
 		}
+	}()
+	v, err := ctrl(ctx)
+	if err != nil {
+		v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, err)
+	}
+	return
+}
+
+func (k *_Kernel) render(v View, w http.ResponseWriter) {
+	// Ensure the view is not nil
+	if v == nil {
+		v = k.defaultView()
+	}
+	// Send response header
+	headers, body := w.Header(), v.Body()
+	headers.Set("Server", _HeaderServer)
+	if body != nil {
+		// Get content type from view
+		if vat, ok := v.(ViewAdviseType); ok {
+			headers.Set("Content-Type", vat.ContentType())
+		}
+		// Get content length from view
+		if vas, ok := v.(ViewAdviseSize); ok {
+			headers.Set("Content-Length", strconv.FormatInt(vas.ContentLength(), 10))
+		} else if l, ok := body.(hasLength); ok {
+			// Auto detect content length
+			headers.Set("Content-Length", strconv.Itoa(l.Len()))
+		}
+	}
+	// Allow view manipulates response header
+	if hi, ok := v.(HeaderInterceptor); ok {
+		hi.BeforeSend(headers)
+	}
+	// Allow ghost manipulates response header
+	if k.ghi != nil {
+		k.ghi.BeforeSend(headers)
 	}
 	w.WriteHeader(v.Status())
-	if body := v.Body(); body != nil {
+	// Send response body
+	if body != nil {
 		// Auto close the closable body
 		if c, ok := body.(io.Closer); ok {
 			defer func() {
@@ -113,23 +158,11 @@ func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
-	defer func() {
-		// Catch panic
-		if r := recover(); r != nil {
-			if err, ok := r.(error); ok {
-				v = k.handleError(err)
-			} else {
-				v = k.handleError(fmt.Errorf("panic: %v", r))
-			}
-		}
-	}()
-	v, err := ctrl(ctx)
-	if err != nil {
-		v = k.handleError(err)
-	}
-	if v == nil {
-		v = k.defaultView()
-	}
-	return
+// defaultView returns HTTP 200 empty view.
+func (k *_Kernel) defaultView() View {
+	return view.Http200
+}
+
+type hasLength interface {
+	Len() int
 }

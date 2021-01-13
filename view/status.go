@@ -11,10 +11,6 @@ func (v statusView) Status() int {
 	return int(v)
 }
 
-func (v statusView) Header() http.Header {
-	return nil
-}
-
 func (v statusView) Body() io.Reader {
 	return nil
 }

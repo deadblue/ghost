@@ -103,7 +103,7 @@ func Parse(name string) (method string, rule *Rule, err error) {
 			start = i
 		}
 	}
-	method = words[0]
+	method = strings.ToUpper(words[0])
 	if len(words) > 1 {
 		rule, err = (&_Parser{words: words[1:]}).Parse()
 	} else {

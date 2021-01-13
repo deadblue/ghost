@@ -7,6 +7,8 @@ A simple HTTP server framework in Go, without any third-party dependencies.
 
 Use it ONLY when you seek for simpleness, and do not extremely eager for performance and robustness.
 
+**This framework is W.I.P., so the APIs are volatile, and there may be some unknown bugs in it.**
+
 ## Usage
 
 All you need to do, is to make an interesting ghost, then run it.
@@ -59,13 +61,13 @@ func (g *YourGhost) Bind(v interface{}) ghost.Controller {
     }
 }
 
-// Implement ghost.AwareStartup interface, to initialize your ghost before shell running.
+// Implement ghost.StartupHandler interface, to initialize your ghost before shell running.
 func (g *YourGhost) OnStartup() error {
     // Initializing  ...
     return nil
 }
 
-// Implement ghost.AwareShutdown interface, to finalize your ghost after shell shutdown.
+// Implement ghost.ShutdownHandler interface, to finalize your ghost after shell shutdown.
 func (g *YourGhost) OnShutdown() error { 
     // Finalizing ...
     return nil
@@ -81,7 +83,7 @@ func main() {
 
 ## Mechanism
 
-All methods on the ghost object, which is in form of the `ghost.Controller`, will be mounted as a request handler. 
+Each method on the ghost object, which is in form of `ghost.Controller`, will be mounted as a request handler. 
 
 The method name, will be translated as the mount path, following these rules:
 

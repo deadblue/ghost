@@ -37,11 +37,33 @@ type Context interface {
 	// Request returns the original HTTP request object.
 	Request() *http.Request
 
+	// MethodAndPath return request method and path.
+	MethodAndPath() (method string, path string)
+
 	// PathVar return the variable value in request path.
 	PathVar(name string) string
 
-	// Query returns the parameter value in query string.
+	// Header returns a value in request header with given name.
+	Header(name string) string
+
+	// HeaderArray returns all values in request header who has the given name.
+	HeaderArray(name string) []string
+
+	// Query returns the parameter value in query string who has the given name.
 	Query(name string) string
+
+	// QueryArray returns all parameter values in query string who has the given name.
+	QueryArray(name string) []string
+
+	// Cookie returns the cookie value who has the given name.
+	Cookie(name string) string
+
+	// CookieArray returns all cookie values who has the given name.
+	CookieArray(name string) []string
+
+	// Body return the request body, do not use it in individual goroutine,
+	// because it will be closed after controller return.
+	Body() io.Reader
 }
 
 // View describes the response.
@@ -50,11 +72,9 @@ type View interface {
 	// HTTP status code
 	Status() int
 
-	// Response headers
-	Header() http.Header
-
 	// Response body
 	Body() io.Reader
 }
 
+// Controller is a function to handle request.
 type Controller func(ctx Context) (v View, err error)
