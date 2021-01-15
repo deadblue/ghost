@@ -26,6 +26,7 @@ type _ShellImpl struct {
 
 func (s *_ShellImpl) die(err error) {
 	if atomic.CompareAndSwapInt32(&s.cf, 0, 1) {
+		_ = s.kn.AfterShutdown()
 		if err != nil {
 			s.ec <- err
 		}
@@ -34,6 +35,9 @@ func (s *_ShellImpl) die(err error) {
 }
 
 func (s *_ShellImpl) Startup() error {
+	if err := s.kn.BeforeStartup(); err != nil {
+		return err
+	}
 	// Start network listener
 	l, err := net.Listen(s.ln, s.la)
 	if err != nil {
@@ -45,12 +49,8 @@ func (s *_ShellImpl) Startup() error {
 		ul.SetUnlinkOnClose(true)
 	}
 	go func(nl net.Listener) {
-		err := s.kn.BeforeStartup()
-		if err == nil {
-			err = s.hs.Serve(nl)
-		}
+		err := s.hs.Serve(nl)
 		if err != nil && err != http.ErrServerClosed {
-			_ = s.kn.AfterShutdown()
 			s.die(err)
 		}
 	}(l)
@@ -61,7 +61,6 @@ func (s *_ShellImpl) Shutdown() {
 	go func() {
 		if atomic.LoadInt32(&s.cf) == 0 {
 			err := s.hs.Shutdown(context.Background())
-			_ = s.kn.AfterShutdown()
 			s.die(err)
 		}
 	}()

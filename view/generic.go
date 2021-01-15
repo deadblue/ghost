@@ -22,9 +22,9 @@ func (gv *GenericView) Body() io.Reader {
 	return gv.body
 }
 
-func (gv *GenericView) BeforeSend(h http.Header) {
+func (gv *GenericView) BeforeSendHeader(h http.Header) {
 	// Pouring stored headers
-	if gv.header != nil {
+	if gv.header != nil && len(gv.header) > 0 {
 		for k, vs := range gv.header {
 			for _, v := range vs {
 				h.Add(k, v)
@@ -33,34 +33,41 @@ func (gv *GenericView) BeforeSend(h http.Header) {
 	}
 }
 
-func (gv *GenericView) ContentType(ct string) *GenericView {
-	gv.header.Set("Content-Type", ct)
+func (gv *GenericView) BodySize(size int64) *GenericView {
+	gv.header.Set("Content-Length", strconv.FormatInt(size, 10))
 	return gv
 }
 
-func (gv *GenericView) ContentLength(length int) *GenericView {
-	gv.header.Set("Content-Length", strconv.Itoa(length))
+func (gv *GenericView) MediaType(t string) *GenericView {
+	gv.header.Set("Content-Type", t)
 	return gv
 }
 
-func (gv *GenericView) ContentLength64(length int64) *GenericView {
-	gv.header.Set("Content-Length", strconv.FormatInt(length, 10))
+func (gv *GenericView) Download(mode string, filename string) *GenericView {
+	value := "inline"
+	if mode == "attachment" {
+		value = "attachment"
+	}
+	if filename != "" {
+		value += "; filename=\"" + filename + "\""
+	}
+	gv.header.Set("Content-Disposition", value)
 	return gv
 }
 
-func (gv *GenericView) PrivateCache(age time.Duration) *GenericView {
+func (gv *GenericView) CachePrivate(age time.Duration) *GenericView {
 	gv.header.Set("Cache-Control", fmt.Sprintf(
 		"private, max-age=%d", int64(age.Seconds())))
 	return gv
 }
 
-func (gv *GenericView) PublicCache(age time.Duration) *GenericView {
+func (gv *GenericView) CachePublic(age time.Duration) *GenericView {
 	gv.header.Set("Cache-Control", fmt.Sprintf(
 		"public, max-age=%d", int64(age.Seconds())))
 	return gv
 }
 
-func (gv *GenericView) DisableCache() *GenericView {
+func (gv *GenericView) CacheDisable() *GenericView {
 	gv.header.Set("Cache-Control", "no-store")
 	return gv
 }

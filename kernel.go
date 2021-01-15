@@ -17,16 +17,14 @@ type _Kernel struct {
 	// Route tree
 	rt *_RouteTable
 
-	// HTTP status handler
-	hsh HttpStatusHandler
-	// Ghost header interceptor
-	ghi HeaderInterceptor
+	// HTTP status observer
+	sh StatusHandler
 }
 
 func (k *_Kernel) BeforeStartup() (err error) {
 	if k.g != nil {
-		if h, ok := k.g.(StartupHandler); ok {
-			err = h.OnStartup()
+		if o, isImpl := k.g.(StartupObserver); isImpl {
+			err = o.BeforeStartup()
 		}
 	}
 	return
@@ -34,8 +32,8 @@ func (k *_Kernel) BeforeStartup() (err error) {
 
 func (k *_Kernel) AfterShutdown() (err error) {
 	if k.g != nil {
-		if h, ok := k.g.(ShutdownHandler); ok {
-			err = h.OnShutdown()
+		if o, isImpl := k.g.(ShutdownObserver); isImpl {
+			err = o.AfterShutdown()
 		}
 	}
 	return
@@ -48,14 +46,10 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 		branches: make(map[string][]*_RoutePath),
 	}
 	// Setup HTTP status handler
-	if sh, ok := ghost.(HttpStatusHandler); ok {
-		k.hsh = sh
+	if sh, ok := ghost.(StatusHandler); ok {
+		k.sh = sh
 	} else {
-		k.hsh = defaultStatusHandler
-	}
-	// Setup global header interceptor
-	if hi, ok := ghost.(HeaderInterceptor); ok {
-		k.ghi = hi
+		k.sh = defaultStatusHandler
 	}
 	// Scan controller
 	binder, hasBinder := ghost.(Binder)
@@ -69,8 +63,10 @@ func (k *_Kernel) Install(ghost interface{}) *_Kernel {
 		}
 		// Use binder if developer implements it.
 		if hasBinder {
-			// The 50x fast controller
-			ctrl = binder.Bind(mt.Func.Interface())
+			// Double check, avoid nil controller.
+			if fastCtrl := binder.Bind(mt.Func.Interface()); fastCtrl != nil {
+				ctrl = fastCtrl
+			}
 		}
 		// Mount controller
 		if err := k.rt.Mount(mt.Name, ctrl); err == nil {
@@ -87,7 +83,7 @@ func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctrl, v := k.rt.Resolve(ctx), View(nil)
 	// Invoke controller
 	if ctrl == nil {
-		v = k.hsh.OnStatus(http.StatusNotFound, ctx, nil)
+		v = k.sh.OnStatus(http.StatusNotFound, ctx, nil)
 	} else {
 		v = k.invoke(ctrl, ctx)
 	}
@@ -100,15 +96,15 @@ func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
 		// Catch panic here
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
-				v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, err)
+				v = k.sh.OnStatus(http.StatusInternalServerError, ctx, err)
 			} else {
-				v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
+				v = k.sh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
 			}
 		}
 	}()
 	v, err := ctrl(ctx)
 	if err != nil {
-		v = k.hsh.OnStatus(http.StatusInternalServerError, ctx, err)
+		v = k.sh.OnStatus(http.StatusInternalServerError, ctx, err)
 	}
 	return
 }
@@ -122,25 +118,31 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 	headers, body := w.Header(), v.Body()
 	headers.Set("Server", _HeaderServer)
 	if body != nil {
-		// Get content type from view
-		if vat, ok := v.(ViewAdviseType); ok {
-			headers.Set("Content-Type", vat.ContentType())
+		// Setup content type
+		var cntType string
+		if a, ok := v.(ViewTypeAdviser); ok {
+			cntType = a.ContentType()
 		}
-		// Get content length from view
-		if vas, ok := v.(ViewAdviseSize); ok {
-			headers.Set("Content-Length", strconv.FormatInt(vas.ContentLength(), 10))
-		} else if l, ok := body.(hasLength); ok {
-			// Auto detect content length
-			headers.Set("Content-Length", strconv.Itoa(l.Len()))
+		if cntType == "" {
+			cntType = "application/octet-stream"
+		}
+		headers.Set("Content-Type", cntType)
+		// Setup content length
+		size := int64(0)
+		if a, ok := v.(ViewSizeAdviser); ok {
+			// Get size from view
+			size = a.ContentLength()
+		} else if l, ok := body.(bodyHasLength); ok {
+			// Auto detect body size
+			size = int64(l.Len())
+		}
+		if size > 0 {
+			headers.Set("Content-Length", strconv.FormatInt(size, 10))
 		}
 	}
 	// Allow view manipulates response header
-	if hi, ok := v.(HeaderInterceptor); ok {
-		hi.BeforeSend(headers)
-	}
-	// Allow ghost manipulates response header
-	if k.ghi != nil {
-		k.ghi.BeforeSend(headers)
+	if hi, ok := v.(ViewHeaderInterceptor); ok {
+		hi.BeforeSendHeader(headers)
 	}
 	w.WriteHeader(v.Status())
 	// Send response body
@@ -161,8 +163,4 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 // defaultView returns HTTP 200 empty view.
 func (k *_Kernel) defaultView() View {
 	return view.Http200
-}
-
-type hasLength interface {
-	Len() int
 }
