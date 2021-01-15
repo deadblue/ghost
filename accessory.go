@@ -26,17 +26,17 @@ type Binder interface {
 // StartupObserver is an optional interface for developer's ghost.
 type StartupObserver interface {
 
-	// BeforeStartup will be called before Shell starts up, developer can do initializing
-	// works in it. When BeforeStartup returns an error, the shell won't start up, and
-	// return the error.
+	// BeforeStartup will be called before Shell starts up, developer can do
+	// initializing works in it. When BeforeStartup returns an error, the shell
+	// won't start up, and return the error.
 	BeforeStartup() error
 }
 
 // ShutdownObserver is an optional interface for developer's ghost.
 type ShutdownObserver interface {
 
-	// AfterShutdown will always be called after Shell completely shut down, even Shell
-	// shut down with an error, developer can do finalizing works in it.
+	// AfterShutdown will always be called after Shell completely shut down, even
+	// Shell shut down with an error, developer can do finalizing works in it.
 	// Currently, the returned error will be ignored.
 	AfterShutdown() error
 }
