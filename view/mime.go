@@ -20,15 +20,41 @@ func (v Text) Body() io.Reader {
 }
 
 func (v Text) ContentType() string {
-	return "text/plain;charset=utf-8"
+	return "text/plain; charset=utf-8"
 }
 
-func Json(data interface{}) (v ghost.View, err error) {
-	body, err := json.Marshal(data)
-	if err != nil {
-		return
+type Binary []byte
+
+func (v Binary) Status() int {
+	return http.StatusOK
+}
+
+func (v Binary) Body() io.Reader {
+	return bytes.NewReader(v)
+}
+
+func (v Binary) ContentType() string {
+	return "application/octet-stream"
+}
+
+type Json []byte
+
+func (v Json) Status() int {
+	return http.StatusOK
+}
+
+func (v Json) Body() io.Reader {
+	return bytes.NewReader(v)
+}
+
+func (v Json) ContentType() string {
+	return "application/json; charset=utf-8"
+}
+
+func AsJson(v interface{}) (view ghost.View, err error) {
+	body, err := json.Marshal(v)
+	if err == nil {
+		view = Json(body)
 	}
-	v = Generic(http.StatusOK, bytes.NewReader(body)).
-		ContentType("application/json;charset=utf-8")
 	return
 }

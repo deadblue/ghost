@@ -119,19 +119,20 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 	headers.Set("Server", _HeaderServer)
 	if body != nil {
 		// Setup content type
+		var cntType string
 		if a, ok := v.(ViewTypeAdviser); ok {
-			// Get type from view
-			headers.Set("Content-Type", a.ContentType())
-		} else {
-			// Default type
-			headers.Set("Content-Type", "application/octet-stream")
+			cntType = a.ContentType()
 		}
+		if cntType == "" {
+			cntType = "application/octet-stream"
+		}
+		headers.Set("Content-Type", cntType)
 		// Setup content length
 		size := int64(0)
 		if a, ok := v.(ViewSizeAdviser); ok {
 			// Get size from view
 			size = a.ContentLength()
-		} else if l, ok := body.(hasLength); ok {
+		} else if l, ok := body.(bodyHasLength); ok {
 			// Auto detect body size
 			size = int64(l.Len())
 		}
@@ -140,8 +141,8 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 		}
 	}
 	// Allow view manipulates response header
-	if hi, ok := v.(HeaderInterceptor); ok {
-		hi.BeforeSend(headers)
+	if hi, ok := v.(ViewHeaderInterceptor); ok {
+		hi.BeforeSendHeader(headers)
 	}
 	w.WriteHeader(v.Status())
 	// Send response body
@@ -162,8 +163,4 @@ func (k *_Kernel) render(v View, w http.ResponseWriter) {
 // defaultView returns HTTP 200 empty view.
 func (k *_Kernel) defaultView() View {
 	return view.Http200
-}
-
-type hasLength interface {
-	Len() int
 }
