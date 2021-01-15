@@ -1,6 +1,6 @@
 # GHOST 👻
 
-![Version](https://img.shields.io/badge/Release-v0.0.1-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/Release-v0.0.2-brightgreen?style=flat-square)
 [![Reference](https://img.shields.io/:Go-Reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/deadblue/ghost)
 ![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 
@@ -70,17 +70,6 @@ func main() {
 }
 ```
 
-## Accessories
-
-There are some optional interfaces, that developer can implement on his ghost, to make it more powerful:
-
-* Binder
-* StartupObserver
-* ShutdownObserver
-* StatusHandler
-
-Please check the reference for detail.
-
 ## Mechanism
 
 Each method on the ghost object, which is in form of `ghost.Controller`, will be mounted as a request handler. 
@@ -108,12 +97,23 @@ For examples:
 | GetDataByIdAsJson | GET /data/{id}.json
 | BuyMeACoffee      | BUY /me/a/coffee
 
+## Accessories
+
+There are some optional interfaces, that developer can implement on his ghost, to make it more powerful:
+
+* Binder
+* StartupObserver
+* ShutdownObserver
+* StatusHandler
+
+Please check the reference for detail.
+
 ## Restrictions
 
 According to the design and mechanism, GHOST has following restrictions:
 
 * GHOST can only handle the request in which each path segment is in lower case.
-* There is only one path variable in each path segment.
+* There can be only one path variable in each path segment.
 * The path variable can only consist of alphabet, numeric and underscore.
 
 ## License
