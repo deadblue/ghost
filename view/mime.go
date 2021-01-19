@@ -23,6 +23,20 @@ func (v Text) ContentType() string {
 	return "text/plain; charset=utf-8"
 }
 
+type Html string
+
+func (v Html) Status() int {
+	return http.StatusOK
+}
+
+func (v Html) Body() io.Reader {
+	return strings.NewReader(string(v))
+}
+
+func (v Html) ContentType() string {
+	return "text/html; charset=utf-8"
+}
+
 type Binary []byte
 
 func (v Binary) Status() int {

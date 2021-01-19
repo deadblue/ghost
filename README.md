@@ -1,6 +1,6 @@
 # GHOST 👻
 
-![Version](https://img.shields.io/badge/Release-v0.0.2-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/Release-v0.0.3-brightgreen?style=flat-square)
 [![Reference](https://img.shields.io/:Go-Reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/deadblue/ghost)
 ![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 

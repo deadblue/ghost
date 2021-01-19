@@ -26,15 +26,21 @@ func (gv *GenericView) BeforeSendHeader(h http.Header) {
 	// Pouring stored headers
 	if gv.header != nil && len(gv.header) > 0 {
 		for k, vs := range gv.header {
-			for _, v := range vs {
-				h.Add(k, v)
+			if len(vs) > 1 {
+				for _, v := range vs {
+					h.Add(k, v)
+				}
+			} else {
+				h.Set(k, vs[0])
 			}
 		}
 	}
 }
 
 func (gv *GenericView) BodySize(size int64) *GenericView {
-	gv.header.Set("Content-Length", strconv.FormatInt(size, 10))
+	if size > 0 {
+		gv.header.Set("Content-Length", strconv.FormatInt(size, 10))
+	}
 	return gv
 }
 
