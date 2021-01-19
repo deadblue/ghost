@@ -52,7 +52,7 @@ func (t *_RouteTable) Mount(name string, ctrl Controller) (err error) {
 
 func (t *_RouteTable) Resolve(ctx *context.Impl) (ctrl Controller) {
 	// Get request method and path
-	rm, rp := ctx.MethodAndPath()
+	rm, rp := ctx.Method(), ctx.Path()
 	// First search exactly matching
 	exists := false
 	if ctrl, exists = t.mapping[_RouteKey{rm, rp}]; exists {

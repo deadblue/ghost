@@ -7,8 +7,8 @@ import (
 
 type implStatusHandler struct{}
 
-func (h implStatusHandler) OnStatus(status int, context Context, err error) View {
-	m, p := context.MethodAndPath()
+func (h implStatusHandler) OnStatus(status int, ctx Context, err error) View {
+	m, p := ctx.Method(), ctx.Path()
 	switch status {
 	case http.StatusNotFound:
 		return view.NotFound(m, p)

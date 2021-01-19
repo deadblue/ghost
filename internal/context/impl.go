@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // TODO:
@@ -28,8 +29,45 @@ func (i *Impl) Request() *http.Request {
 	return i.r
 }
 
-func (i *Impl) MethodAndPath() (method string, path string) {
-	return i.r.Method, i.r.URL.Path
+func (i *Impl) Scheme() string {
+	scheme := i.Header("X-Forwarded-Proto")
+	if scheme == "" {
+		scheme = i.r.URL.Scheme
+	}
+	return scheme
+}
+
+func (i *Impl) Host() string {
+	host := i.Header("X-Forwarded-Host")
+	if host == "" {
+		host = i.r.Host
+	}
+	return host
+}
+
+func (i *Impl) Method() string {
+	return i.r.Method
+}
+
+func (i *Impl) Path() string {
+	return i.r.URL.Path
+}
+
+func (i *Impl) RemoteIp() string {
+	// Try to get IP from XFF header
+	xff := i.Header("X-Forwarded-For")
+	if xff != "" {
+		if ips := strings.Split(xff, ","); len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+	addr := i.r.RemoteAddr
+	for n := len(addr) - 1; n >= 0; n-- {
+		if addr[n] == ':' {
+			return addr[:n]
+		}
+	}
+	return addr
 }
 
 func (i *Impl) PathVar(name string) string {

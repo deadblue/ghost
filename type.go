@@ -37,8 +37,20 @@ type Context interface {
 	// Request returns the original HTTP request object.
 	Request() *http.Request
 
-	// MethodAndPath return request method and path.
-	MethodAndPath() (method string, path string)
+	// Scheme returns request scheme(http/https).
+	Scheme() string
+
+	// Host returns request server host.
+	Host() string
+
+	// Method returns request method in upper-case.
+	Method() string
+
+	// Path returns request path.
+	Path() string
+
+	// RemoteIp returns the client IP.
+	RemoteIp() string
 
 	// PathVar return the variable value in request path.
 	PathVar(name string) string

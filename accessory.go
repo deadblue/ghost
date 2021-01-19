@@ -46,5 +46,5 @@ type ShutdownObserver interface {
 type StatusHandler interface {
 
 	// OnStatus will be called when HTTP 40x and 50x error occurred.
-	OnStatus(status int, context Context, err error) View
+	OnStatus(status int, ctx Context, err error) View
 }
