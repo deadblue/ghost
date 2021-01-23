@@ -6,9 +6,20 @@ import (
 	"github.com/deadblue/ghost/internal/view"
 	"io"
 	"log"
+	"mime"
 	"net/http"
+	"path"
 	"reflect"
 	"strconv"
+)
+
+const (
+	// Special response headers
+	_HeaderServer        = "Server"
+	_HeaderContentType   = "Content-Type"
+	_HeaderContentLength = "Content-Length"
+	// Default header value
+	_DefaultContentType = "application/octet-stream"
 )
 
 type _Kernel struct {
@@ -88,7 +99,7 @@ func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		v = k.invoke(ctrl, ctx)
 	}
 	// Render view
-	k.render(v, w)
+	k.render(ctx, v, w)
 }
 
 func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
@@ -109,41 +120,49 @@ func (k *_Kernel) invoke(ctrl Controller, ctx Context) (v View) {
 	return
 }
 
-func (k *_Kernel) render(v View, w http.ResponseWriter) {
+func (k *_Kernel) render(ctx Context, v View, w http.ResponseWriter) {
 	// Ensure the view is not nil
 	if v == nil {
 		v = k.defaultView()
 	}
-	// Send response header
 	headers, body := w.Header(), v.Body()
-	headers.Set("Server", _HeaderServer)
-	if body != nil {
-		// Setup content type
-		var cntType string
-		if a, ok := v.(ViewTypeAdviser); ok {
-			cntType = a.ContentType()
-		}
-		if cntType == "" {
-			cntType = "application/octet-stream"
-		}
-		headers.Set("Content-Type", cntType)
-		// Setup content length
-		size := int64(0)
-		if a, ok := v.(ViewSizeAdviser); ok {
-			// Get size from view
-			size = a.ContentLength()
-		} else if l, ok := body.(bodyHasLength); ok {
-			// Auto detect body size
-			size = int64(l.Len())
-		}
-		if size > 0 {
-			headers.Set("Content-Length", strconv.FormatInt(size, 10))
-		}
-	}
-	// Allow view manipulates response header
+	// Prepare response header
+	headers.Set(_HeaderServer, _Server)
+	// Allow view manipulates the response header
 	if hi, ok := v.(ViewHeaderInterceptor); ok {
 		hi.BeforeSendHeader(headers)
 	}
+	// Set Content-Type and Content-Length at last
+	if body != nil {
+		// Try to set "Content-Type", when view does not set.
+		if headers.Get(_HeaderContentType) == "" {
+			ct := ""
+			if a, ok := v.(ViewTypeAdviser); ok {
+				ct = a.ContentType()
+			} else {
+				ct = mime.TypeByExtension(path.Ext(ctx.Path()))
+			}
+			if ct == "" {
+				ct = _DefaultContentType
+			}
+			headers.Set(_HeaderContentType, ct)
+		}
+		// Try to set "Content-Length" when view does not set.
+		if headers.Get(_HeaderContentLength) == "" {
+			size := int64(0)
+			if a, ok := v.(ViewSizeAdviser); ok {
+				// Get size from view
+				size = a.ContentLength()
+			} else if l, ok := body.(bodyHasLength); ok {
+				// Auto detect body size
+				size = int64(l.Len())
+			}
+			if size > 0 {
+				headers.Set(_HeaderContentLength, strconv.FormatInt(size, 10))
+			}
+		}
+	}
+	// Send response header
 	w.WriteHeader(v.Status())
 	// Send response body
 	if body != nil {

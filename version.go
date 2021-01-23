@@ -10,6 +10,6 @@ const (
 )
 
 var (
-	_HeaderServer = fmt.Sprintf("Ghost/%s (%s/%s %s)", Version,
+	_Server = fmt.Sprintf("Ghost/%s (%s/%s %s)", Version,
 		runtime.GOOS, runtime.GOARCH, runtime.Version())
 )
