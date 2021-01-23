@@ -41,6 +41,7 @@ func (s *_ShellImpl) Startup() error {
 	// Start network listener
 	l, err := net.Listen(s.ln, s.la)
 	if err != nil {
+		_ = s.kn.AfterShutdown()
 		return err
 	}
 	log.Printf("Shell working at: %s://%s", s.ln, s.la)
