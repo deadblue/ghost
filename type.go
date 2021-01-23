@@ -6,7 +6,43 @@ import (
 	"os"
 )
 
-// Shell is a lifeless object, until developer gives an interesting ghost to it.
+/*
+Shell is the shell of the developer made ghost, it covers the basic reactions what an HTTP
+server should do, and dispatches requests to the ghost.
+
+Developer has two ways to use the shell: manually manage the lifecycle, or just run it.
+Here are the examples of the two ways:
+
+	// Create a shell from developer's ghost.
+	shell := ghost.Born(&YourGhost{})
+
+	// Way 1: Just run the shell, wait for it shut down completely.
+	if err := shell.Run(); err != nil {
+		panic(err)
+	}
+
+	// Way 2: Manually manage the lifecycle of the shell.
+	// Start up the shell.
+	if err := shell.Startup(); err != nil {
+		panic(err)
+	}
+	for running := true; running; {
+		select {
+		case <- someEventArrived:
+			// Shut down the shell.
+			shell.Shutdown()
+		case err := <- shell.Done():
+			// The shell completely shut down.
+			if err != nil {
+				// Shut down with error
+			} else {
+				// Normally shut down.
+			}
+			// Exit the for-loop.
+			running = false;
+		}
+	}
+*/
 type Shell interface {
 
 	// Startup starts up the shell manually, use this when you want to
