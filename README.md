@@ -1,12 +1,14 @@
 # GHOST 👻
 
-![Version](https://img.shields.io/badge/Release-v0.0.3-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square)
 [![Reference](https://img.shields.io/:Go-Reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/deadblue/ghost)
 ![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 
 A simple HTTP server framework in Go, without any third-party dependencies.
 
 Use it ONLY when you seek for simpleness, and do not extremely eager for performance and robustness.
+
+**Since 0.1.x, this framework should be used in go 1.18 or above, because it uses generic.**
 
 **This framework is W.I.P., so the APIs are volatile, and there may be some unknown bugs in it.**
 
@@ -51,17 +53,6 @@ func (g *YourGhost) BuyMeACoffee(_ ghost.Context) (ghost.View, error) {
     return view.Text("Thank you!"), nil
 }
 
-// Implement ghost.Binder interface, to speed up the controller invoking.
-func (g *YourGhost) Bind(v interface{}) ghost.Controller {
-    if fn, ok := v.(func(*YourGhost, ghost.Context)(ghost.View, error)); ok {
-        return func(ctx ghost.Context)(ghost.View, error) {
-            return fn(g, ctx)
-        }
-    } else {
-        return nil
-    }
-}
-
 func main() {
     err := ghost.Born(&YourGhost{}).Run()
     if err != nil {
@@ -79,29 +70,29 @@ The method name, will be translated as the mount path, following these rules:
 * Suppose the method name is in camel-case, split it into words.
 * The first word will be treated as request method.
 * If there is no remain words, the method function will handle the root request.
-* If there are remain words, each word will be treated as a path segment.
+* If there are remained words, each word will be treated as a path segment.
 * In remain words, there are some special words that won't be treated as path segment:
   * `By`: The next word will be treated as a path variable.
   * `As`: Link the next word with "." instead of path separator ("/").
 
 For examples:
 
-| Method Name       | Handle Request
-|-------------------|---------------
-| Get               | GET /
-| GetIndex          | GET /index
-| GetUserProfile    | GET /user/profile
-| PostUserProfile   | POST /user/profile
-| GetDataById       | GET /data/{id}
-| GetDataByTypeById | GET /data/{type}/{id}
-| GetDataByIdAsJson | GET /data/{id}.json
-| BuyMeACoffee      | BUY /me/a/coffee
+| Method Name       | Handle Request        |
+|-------------------|-----------------------|
+| Get               | GET /                 |
+| GetIndex          | GET /index            |
+| GetIndexAsHtml    | GET /index.html       |
+| GetUserProfile    | GET /user/profile     |
+| PostUserProfile   | POST /user/profile    |
+| GetDataById       | GET /data/{id}        |
+| GetDataByTypeById | GET /data/{type}/{id} |
+| GetDataByIdAsJson | GET /data/{id}.json   |
+| BuyMeACoffee      | BUY /me/a/coffee      |
 
 ## Accessories
 
-There are some optional interfaces, that developer can implement on his ghost, to make it more powerful:
+There are some optional interfaces for your ghost, to make it more powerful:
 
-* Binder
 * StartupObserver
 * ShutdownObserver
 * StatusHandler
@@ -110,7 +101,7 @@ Please check the reference for detail.
 
 ## Restrictions
 
-According to the design and mechanism, GHOST has following restrictions:
+According to the design and mechanism, GHOST has the following restrictions:
 
 * GHOST can only handle the request in which each path segment is in lower case.
 * There can be only one path variable in each path segment.

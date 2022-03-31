@@ -123,6 +123,3 @@ type View interface {
 	// Response body
 	Body() io.Reader
 }
-
-// Controller is a function to handle request.
-type Controller func(ctx Context) (v View, err error)

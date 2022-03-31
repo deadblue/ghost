@@ -11,20 +11,23 @@ import (
 	"syscall"
 )
 
-type _ShellImpl struct {
+/*
+The implementation of Shell.
+*/
+type _ShellImpl[Ghost any] struct {
 	// Listener network and address
 	ln, la string
 	// HTTP server
 	hs *http.Server
 	// Request dispatch kernel
-	kn *_Kernel
+	kn *_Kernel[Ghost]
 	// Closed flag
 	cf int32
 	// Error channel
 	ec chan error
 }
 
-func (s *_ShellImpl) die(err error) {
+func (s *_ShellImpl[Ghost]) die(err error) {
 	if atomic.CompareAndSwapInt32(&s.cf, 0, 1) {
 		_ = s.kn.AfterShutdown()
 		if err != nil {
@@ -34,7 +37,7 @@ func (s *_ShellImpl) die(err error) {
 	}
 }
 
-func (s *_ShellImpl) Startup() error {
+func (s *_ShellImpl[Ghost]) Startup() error {
 	if err := s.kn.BeforeStartup(); err != nil {
 		return err
 	}
@@ -58,7 +61,7 @@ func (s *_ShellImpl) Startup() error {
 	return nil
 }
 
-func (s *_ShellImpl) Shutdown() {
+func (s *_ShellImpl[Ghost]) Shutdown() {
 	go func() {
 		if atomic.LoadInt32(&s.cf) == 0 {
 			err := s.hs.Shutdown(context.Background())
@@ -67,11 +70,11 @@ func (s *_ShellImpl) Shutdown() {
 	}()
 }
 
-func (s *_ShellImpl) Done() <-chan error {
+func (s *_ShellImpl[Ghost]) Done() <-chan error {
 	return s.ec
 }
 
-func (s *_ShellImpl) Run(sig ...os.Signal) (err error) {
+func (s *_ShellImpl[Ghost]) Run(sig ...os.Signal) (err error) {
 	sc := make(chan os.Signal)
 	if len(sig) > 0 {
 		signal.Notify(sc, sig...)
@@ -102,30 +105,18 @@ func (s *_ShellImpl) Run(sig ...os.Signal) (err error) {
 	return
 }
 
-// Born creates a Shell with your ghost, and will listen at default
-// network and address: "http://127.0.0.1:8066".
-func Born(ghost interface{}) Shell {
-	return BornAt(ghost, "tcp", "127.0.0.1:8066")
-}
-
-// BornAt creates a Shell with your ghost, and will listen at the
-// network and address where you give.
-func BornAt(ghost interface{}, network, address string) Shell {
-	// Create kernel
-	k := (&_Kernel{}).Install(ghost)
-	// Make shell
-	s := &_ShellImpl{
+func createShell[Ghost any](network, address string, kernel *_Kernel[Ghost]) Shell {
+	return &_ShellImpl[Ghost]{
 		// Listener network and address
 		ln: network,
 		la: address,
 		// HTTP server and handler
 		hs: &http.Server{
-			Handler: k,
+			Handler: kernel,
 		},
-		kn: k,
+		kn: kernel,
 
 		cf: 0,
 		ec: make(chan error),
 	}
-	return s
 }

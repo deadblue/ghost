@@ -6,26 +6,28 @@ import (
 	"log"
 )
 
+type _Controller func(ctx Context) (v View, err error)
+
 type _RouteKey struct {
 	method, path string
 }
 
 type _RoutePath struct {
 	// Path controller
-	ctrl Controller
+	ctrl _Controller
 	// Path rule
 	rule *rule.Rule
 }
 
 type _RouteTable struct {
 	// Exact path mapping
-	mapping map[_RouteKey]Controller
+	mapping map[_RouteKey]_Controller
 	// Branches
 	branches map[string][]*_RoutePath
 }
 
 // Mount mounts controller into a request path which is described by name.
-func (t *_RouteTable) Mount(name string, ctrl Controller) (err error) {
+func (t *_RouteTable) Mount(name string, ctrl _Controller) (err error) {
 	// Parse rule
 	m, r, err := rule.Parse(name)
 	if err != nil {
@@ -50,7 +52,7 @@ func (t *_RouteTable) Mount(name string, ctrl Controller) (err error) {
 	return
 }
 
-func (t *_RouteTable) Resolve(ctx *context.Impl) (ctrl Controller) {
+func (t *_RouteTable) Resolve(ctx *context.Impl) (ctrl _Controller) {
 	// Get request method and path
 	rm, rp := ctx.Method(), ctx.Path()
 	// First search exactly matching
