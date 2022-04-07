@@ -47,7 +47,7 @@ func (t *methodTokenizer) Next() (word string, token _ParseToken) {
 
 func (r *Rule) FromMethodName(name string) error {
 	// Initialize
-	r.IsStatic, r.Segments = true, make([]*Segment, 0)
+	r.IsStatic, r.SegHead = true, &Segment{}
 
 	tk := (&methodTokenizer{}).Init(name)
 	// The first word is used as request method
@@ -55,20 +55,19 @@ func (r *Rule) FromMethodName(name string) error {
 		r.Method = strings.ToUpper(word)
 	}
 	// Parse path
-	if err := parse(tk, &r.Segments); err != nil {
+	if err := parse(tk, r.SegHead); err != nil {
 		return err
 	}
 
+	// TODO: Move following login in `parse` function
 	buf := &strings.Builder{}
-	buf.WriteRune('/')
-	for i, s := range r.Segments {
-		if s.IsVar {
+	for seg := r.SegHead; seg != nil; seg = seg.Next {
+		r.Depth += 1
+		if seg.IsVar {
 			r.IsStatic = false
 		}
-		if i > 0 {
-			buf.WriteRune('/')
-		}
-		buf.WriteString(s.String())
+		buf.WriteRune('/')
+		buf.WriteString(seg.String())
 	}
 	r.Path = buf.String()
 	return nil

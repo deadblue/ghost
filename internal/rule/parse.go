@@ -13,8 +13,8 @@ type _TransitionKey struct {
 }
 
 type _TransitionResult struct {
-	NextState  _ParseState
-	ShallFlush bool
+	NextState _ParseState
+	HasNext   bool
 }
 
 type tokenizer interface {
@@ -52,25 +52,29 @@ var (
 		{stateInit, tokenWord}: {stateName, false},
 		{stateInit, tokenKwAs}: {stateAs, false},
 		{stateInit, tokenKwBy}: {stateBy, false},
-		{stateInit, tokenEOL}:  {stateDone, true},
+		{stateInit, tokenEOL}:  {stateDone, false},
+
 		{stateName, tokenWord}: {stateName, true},
 		{stateName, tokenKwAs}: {stateAs, false},
 		{stateName, tokenKwBy}: {stateBy, true},
-		{stateName, tokenEOL}:  {stateDone, true},
-		{stateAs, tokenWord}:   {stateExt, false},
-		{stateExt, tokenEOL}:   {stateDone, true},
-		{stateBy, tokenWord}:   {stateVar, false},
-		{stateVar, tokenWord}:  {stateName, true},
-		{stateVar, tokenKwAs}:  {stateAs, false},
-		{stateVar, tokenKwBy}:  {stateBy, true},
-		{stateVar, tokenEOL}:   {stateDone, true},
+		{stateName, tokenEOL}:  {stateDone, false},
+
+		{stateAs, tokenWord}: {stateExt, false},
+
+		{stateExt, tokenEOL}: {stateDone, false},
+
+		{stateBy, tokenWord}: {stateVar, false},
+
+		{stateVar, tokenWord}: {stateName, true},
+		{stateVar, tokenKwAs}: {stateAs, false},
+		{stateVar, tokenKwBy}: {stateBy, true},
+		{stateVar, tokenEOL}:  {stateDone, false},
 	}
 )
 
-func parse(tk tokenizer, segments *[]*Segment) error {
+func parse(tk tokenizer, head *Segment) error {
 	// Split request path
-	ss, s := make([]*Segment, 0), &Segment{}
-	key := _TransitionKey{CurrState: stateInit}
+	key, node := _TransitionKey{CurrState: stateInit}, head
 	for key.CurrState != stateDone {
 		// Read next word
 		var word string
@@ -79,22 +83,21 @@ func parse(tk tokenizer, segments *[]*Segment) error {
 		if res, ok := transitionTable[key]; !ok {
 			return fmt.Errorf("unexpected word: %s", word)
 		} else {
-			if res.ShallFlush && s.IsValid() {
-				ss = append(ss, s)
-				s = &Segment{}
+			if res.HasNext && node.IsValid() {
+				node.Next = &Segment{}
+				node = node.Next
 			}
 			// Update state
 			key.CurrState = res.NextState
 			// Update segment
 			switch key.CurrState {
 			case stateName, stateVar:
-				s.IsVar = key.CurrState == stateVar
-				s.Name = word
+				node.IsVar = key.CurrState == stateVar
+				node.Name = word
 			case stateExt:
-				s.Ext = word
+				node.Ext = word
 			}
 		}
 	}
-	*segments = ss
 	return nil
 }

@@ -9,6 +9,7 @@ type Segment struct {
 	IsVar bool
 	Name  string
 	Ext   string
+	Next  *Segment
 }
 
 func (s *Segment) IsValid() bool {
@@ -39,7 +40,9 @@ type Rule struct {
 	// Request path
 	Path string
 	// Request path segments
-	Segments []*Segment
+	SegHead *Segment
+	//
+	Depth int
 }
 
 func (r *Rule) StaticKey() string {
@@ -47,5 +50,5 @@ func (r *Rule) StaticKey() string {
 }
 
 func (r *Rule) PathDepth() int {
-	return len(r.Segments)
+	return r.Depth
 }
