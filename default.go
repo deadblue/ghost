@@ -5,9 +5,9 @@ import (
 	"net/http"
 )
 
-type implStatusHandler struct{}
+type _StatusHandlerImpl struct{}
 
-func (h implStatusHandler) OnStatus(status int, ctx Context, err error) View {
+func (h _StatusHandlerImpl) OnStatus(status int, ctx Context, err error) View {
 	m, p := ctx.Method(), ctx.Path()
 	switch status {
 	case http.StatusNotFound:
@@ -19,4 +19,4 @@ func (h implStatusHandler) OnStatus(status int, ctx Context, err error) View {
 	}
 }
 
-var defaultStatusHandler = implStatusHandler{}
+var defaultStatusHandler = _StatusHandlerImpl{}

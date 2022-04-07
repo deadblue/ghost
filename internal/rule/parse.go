@@ -2,151 +2,99 @@ package rule
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 )
 
-type _WordToken int
 type _ParseState int
+type _ParseToken int
+
+type _TransitionKey struct {
+	CurrState _ParseState
+	Token     _ParseToken
+}
+
+type _TransitionResult struct {
+	NextState  _ParseState
+	ShallFlush bool
+}
+
+type tokenizer interface {
+	Next() (string, _ParseToken)
+}
 
 const (
-	keywordAs = "as"
-	keywordBy = "by"
-
-	tokenGeneral _WordToken = iota
+	tokenWord _ParseToken = iota
 	tokenKwAs
 	tokenKwBy
-	tokenEos
+	tokenEOL
 
 	stateInit _ParseState = iota
 	stateName
-	stateKwAs
-	stateKwBy
+	stateAs
+	stateExt
+	stateBy
 	stateVar
+	stateDone
 )
-
-type _TransitionTuple struct {
-	state _ParseState
-	token _WordToken
-}
-type _TransitionFunc func() (_ParseState, bool)
 
 var (
-	_TransitionTable = map[_TransitionTuple]_TransitionFunc{
-		{stateInit, tokenGeneral}: func() (_ParseState, bool) {
-			return stateName, false
-		},
-		{stateInit, tokenKwAs}: func() (_ParseState, bool) {
-			return stateKwAs, false
-		},
-		{stateInit, tokenKwBy}: func() (_ParseState, bool) {
-			return stateKwBy, false
-		},
-		{stateName, tokenGeneral}: func() (_ParseState, bool) {
-			return stateName, true
-		},
-		{stateName, tokenKwAs}: func() (_ParseState, bool) {
-			return stateKwAs, false
-		},
-		{stateName, tokenKwBy}: func() (_ParseState, bool) {
-			return stateKwBy, true
-		},
-		{stateName, tokenEos}: func() (_ParseState, bool) {
-			return stateInit, true
-		},
-		{stateKwAs, tokenGeneral}: func() (_ParseState, bool) {
-			return stateName, false
-		},
-		{stateKwAs, tokenEos}: func() (_ParseState, bool) {
-			return stateInit, true
-		},
-		{stateKwBy, tokenGeneral}: func() (_ParseState, bool) {
-			return stateVar, false
-		},
-		{stateVar, tokenGeneral}: func() (_ParseState, bool) {
-			return stateName, true
-		},
-		{stateVar, tokenKwAs}: func() (_ParseState, bool) {
-			return stateKwAs, false
-		},
-		{stateVar, tokenKwBy}: func() (_ParseState, bool) {
-			return stateKwBy, true
-		},
-		{stateVar, tokenEos}: func() (_ParseState, bool) {
-			return stateInit, true
-		},
+	// Transition table:
+	//   | S\T  | Word | KwAs | KwBy | EOL  |
+	//   |------|------|------|------|------|
+	//   | Init | Name | KwAs | KwBy | Done |
+	//   | Name | Name | KwAs | KwBy | Done |
+	//   | As   | Ext  | -    | -    | -    |
+	//   | Ext  | -    | -    | -    | Done |
+	//   | By   | Var  | -    | -    | -    |
+	//   | Var  | Name | KwAs | KwBy | Done |
+	//   | Done | -    | -    | -    | -    |
+	//   |------|------|------|------|------|
+	transitionTable = map[_TransitionKey]_TransitionResult{
+		{stateInit, tokenWord}: {stateName, false},
+		{stateInit, tokenKwAs}: {stateAs, false},
+		{stateInit, tokenKwBy}: {stateBy, false},
+		{stateInit, tokenEOL}:  {stateDone, true},
+		{stateName, tokenWord}: {stateName, true},
+		{stateName, tokenKwAs}: {stateAs, false},
+		{stateName, tokenKwBy}: {stateBy, true},
+		{stateName, tokenEOL}:  {stateDone, true},
+		{stateAs, tokenWord}:   {stateExt, false},
+		{stateExt, tokenEOL}:   {stateDone, true},
+		{stateBy, tokenWord}:   {stateVar, false},
+		{stateVar, tokenWord}:  {stateName, true},
+		{stateVar, tokenKwAs}:  {stateAs, false},
+		{stateVar, tokenKwBy}:  {stateBy, true},
+		{stateVar, tokenEOL}:   {stateDone, true},
 	}
 )
 
-type _Parser struct {
-	words []string
-}
-
-func (p *_Parser) Parse() (rule *Rule, err error) {
-	// Initial variables
-	segments := make([]*_SegmentRule, 0)
-	last, state := 0, stateInit
-	// Scan words
-	count := len(p.words)
-	for i := 0; i <= count; i++ {
-		// Select word and token
-		word, token := "", tokenEos
-		if i < count {
-			word = p.words[i]
-			switch word {
-			case keywordAs:
-				token = tokenKwAs
-			case keywordBy:
-				token = tokenKwBy
-			default:
-				token = tokenGeneral
-			}
-		}
-		// Analysis word
-		if tf, ok := _TransitionTable[_TransitionTuple{state, token}]; !ok {
-			err = fmt.Errorf("unexpected word: %s", word)
-			break
+func parse(tk tokenizer, segments *[]*Segment) error {
+	// Split request path
+	ss, s := make([]*Segment, 0), &Segment{}
+	key := _TransitionKey{CurrState: stateInit}
+	for key.CurrState != stateDone {
+		// Read next word
+		var word string
+		word, key.Token = tk.Next()
+		// Get transition result
+		if res, ok := transitionTable[key]; !ok {
+			return fmt.Errorf("unexpected word: %s", word)
 		} else {
-			flushBuf := false
-			if state, flushBuf = tf(); flushBuf {
-				segments = append(segments, p.makeSegment(last, i))
-				last = i
+			if res.ShallFlush && s.IsValid() {
+				ss = append(ss, s)
+				s = &Segment{}
+			}
+			// Update state
+			key.CurrState = res.NextState
+			// Update segment
+			switch key.CurrState {
+			case stateName, stateVar:
+				s.IsVar = key.CurrState == stateVar
+				s.Name = word
+			case stateExt:
+				s.Ext = word
 			}
 		}
 	}
-	if err == nil {
-		rule = &Rule{
-			depth: len(segments),
-			srs:   segments,
-		}
-	}
-	return
-}
-
-func (p *_Parser) makeSegment(from, to int) (seg *_SegmentRule) {
-	seg, buf := &_SegmentRule{}, &strings.Builder{}
-	hasVar := false
-	for i := from; i < to; i++ {
-		switch word := p.words[i]; word {
-		case keywordAs:
-			if hasVar {
-				buf.WriteString("\\.")
-			} else {
-				buf.WriteString(".")
-			}
-		case keywordBy:
-			hasVar = true
-			i += 1
-			seg.varName = p.words[i]
-			buf.WriteString("(\\w+)")
-		default:
-			buf.WriteString(word)
-		}
-	}
-	// Always set value for debugging
-	seg.value = buf.String()
-	if hasVar {
-		seg.pattern = regexp.MustCompile("^" + seg.value + "$")
-	}
-	return
+	*segments = ss
+	return nil
 }

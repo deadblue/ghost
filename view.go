@@ -1,6 +1,20 @@
 package ghost
 
-import "net/http"
+import (
+	"io"
+	"net/http"
+)
+
+// View describes the response.
+type View interface {
+
+	// Status returns response code.
+	Status() int
+
+	// Body returns an io.Reader for reading response body from, it will be
+	// auto-closed after read if it implements io.Closer.
+	Body() io.Reader
+}
 
 // ViewTypeAdviser is an optional interface for View.
 // Developer need not implement it when the view does not have a body.

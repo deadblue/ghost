@@ -29,7 +29,13 @@ var (
 		runtime.GOOS, runtime.GOARCH, runtime.Version())
 )
 
-type _Kernel[Ghost any] struct {
+type _Engine interface {
+	http.Handler
+	StartupObserver
+	ShutdownObserver
+}
+
+type _EngineImpl[Ghost any] struct {
 	// The ghost which implemented by user
 	g Ghost
 	// Route tree
@@ -38,88 +44,59 @@ type _Kernel[Ghost any] struct {
 	sh StatusHandler
 }
 
-func (k *_Kernel[Ghost]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (e *_EngineImpl[Ghost]) BeforeStartup() (err error) {
+	var ghost any = e.g
+	if ob, isImpl := ghost.(StartupObserver); isImpl {
+		err = ob.BeforeStartup()
+	}
+	return
+}
+
+func (e *_EngineImpl[Ghost]) AfterShutdown() (err error) {
+	var ghost any = e.g
+	if ob, isImpl := ghost.(ShutdownObserver); isImpl {
+		err = ob.AfterShutdown()
+	}
+	return
+}
+
+func (e *_EngineImpl[Ghost]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
-	ctx := context.FromRequest(r)
+	ctx := (&context.Impl{}).FromRequest(r)
 	// Resolve controller
-	ctrl, v := k.rt.Resolve(ctx), View(nil)
+	h, v := e.rt.Resolve(ctx), View(nil)
 	// Invoke controller
-	if ctrl == nil {
-		v = k.sh.OnStatus(http.StatusNotFound, ctx, nil)
+	if h == nil {
+		v = e.sh.OnStatus(http.StatusNotFound, ctx, nil)
 	} else {
-		v = k.invoke(ctrl, ctx)
+		v = e.invoke(h, ctx)
 	}
 	// Render view
-	k.render(ctx, v, w)
+	e.render(ctx, v, w)
 }
 
-func (k *_Kernel[Ghost]) BeforeStartup() (err error) {
-	var i any = k.g
-	if o, isImpl := i.(StartupObserver); isImpl {
-		err = o.BeforeStartup()
-	}
-	return
-}
-
-func (k *_Kernel[Ghost]) AfterShutdown() (err error) {
-	var i interface{} = k.g
-	if o, isImpl := i.(ShutdownObserver); isImpl {
-		err = o.AfterShutdown()
-	}
-	return
-}
-
-func (k *_Kernel[Ghost]) install(ghost Ghost) {
-	// Initial kernel
-	k.g, k.rt = ghost, &_RouteTable{
-		mapping:  make(map[_RouteKey]_Controller),
-		branches: make(map[string][]*_RoutePath),
-	}
-	// Setup HTTP status handler
-	var i interface{} = ghost
-	if sh, ok := i.(StatusHandler); ok {
-		k.sh = sh
-	} else {
-		k.sh = defaultStatusHandler
-	}
-	// Scan controller
-	rt := reflect.TypeOf(ghost)
-	for i := 0; i < rt.NumMethod(); i++ {
-		m := rt.Method(i)
-		mf := m.Func.Interface()
-		if f, ok := mf.(func(Ghost, Context) (View, error)); ok {
-			ctrl := func(ctx Context) (View, error) {
-				return f(ghost, ctx)
-			}
-			if err := k.rt.Mount(m.Name, ctrl); err == nil {
-				log.Printf("Mount controller: %s", m.Name)
-			}
-		}
-	}
-}
-
-func (k *_Kernel[Ghost]) invoke(ctrl _Controller, ctx Context) (v View) {
+func (e *_EngineImpl[Ghost]) invoke(h _Handler[Ghost], ctx Context) (v View) {
 	defer func() {
 		// Catch panic here
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
-				v = k.sh.OnStatus(http.StatusInternalServerError, ctx, err)
+				v = e.sh.OnStatus(http.StatusInternalServerError, ctx, err)
 			} else {
-				v = k.sh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
+				v = e.sh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
 			}
 		}
 	}()
-	v, err := ctrl(ctx)
+	v, err := h(ctx)
 	if err != nil {
-		v = k.sh.OnStatus(http.StatusInternalServerError, ctx, err)
+		v = e.sh.OnStatus(http.StatusInternalServerError, ctx, err)
 	}
 	return
 }
 
-func (k *_Kernel[Ghost]) render(ctx Context, v View, w http.ResponseWriter) {
+func (e *_EngineImpl[Ghost]) render(ctx Context, v View, w http.ResponseWriter) {
 	// Ensure the view is not nil
 	if v == nil {
-		v = k.defaultView()
+		v = e.defaultView()
 	}
 	headers, body := w.Header(), v.Body()
 	// Prepare response header
@@ -172,13 +149,36 @@ func (k *_Kernel[Ghost]) render(ctx Context, v View, w http.ResponseWriter) {
 	}
 }
 
-// defaultView returns HTTP 200 empty view.
-func (k *_Kernel[Ghost]) defaultView() View {
-	return view.Http200
+func (e *_EngineImpl[Ghost]) install(ghost Ghost) {
+	// Initialize engine
+	e.g, e.rt = ghost, &_RouteTable{
+		st: make(map[string]_Handler),
+	}
+	// Scan implemented interfaces on ghost
+	var v any = ghost
+	if sh, isImpl := v.(StatusHandler); isImpl {
+		e.sh = sh
+	} else {
+		e.sh = defaultStatusHandler
+	}
+	// Scan controller
+	rt := reflect.TypeOf(ghost)
+	for i := 0; i < rt.NumMethod(); i++ {
+		m := rt.Method(i)
+		mn, mf := m.Name, m.Func.Interface()
+		// Check method function signature
+		if fn, ok := mf.(func(Ghost, Context) (View, error)); ok {
+			hdl := func(ctx Context) (View, error) {
+				return fn(ghost, ctx)
+			}
+			if err := e.rt.Mount(mn, hdl); err == nil {
+				log.Printf("Mount controller: %s", m.Name)
+			}
+		}
+	}
 }
 
-func createKernel[Ghost any](ghost Ghost) *_Kernel[Ghost] {
-	k := &_Kernel[Ghost]{}
-	k.install(ghost)
-	return k
+// defaultView returns HTTP 200 empty view.
+func (e *_EngineImpl[Ghost]) defaultView() View {
+	return view.Http200
 }

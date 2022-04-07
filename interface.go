@@ -1,6 +1,7 @@
 package ghost
 
-// StartupObserver is an optional interface for your ghost.
+// StartupObserver allows developer be aware when the shell startup, developer can
+// do initializing jobs at that time.
 type StartupObserver interface {
 
 	// BeforeStartup will be called before Shell starts up, you can do some
