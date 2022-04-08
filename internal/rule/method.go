@@ -54,20 +54,19 @@ func (r *Rule) FromMethodName(name string) error {
 	if word, _ := tk.Next(); word != "" {
 		r.Method = strings.ToUpper(word)
 	}
-	// Parse path
-	if err := parse(tk, r.SegHead); err != nil {
-		return err
-	}
-
-	// TODO: Move following login in `parse` function
+	// Parse callback
 	buf := &strings.Builder{}
-	for seg := r.SegHead; seg != nil; seg = seg.Next {
+	cb := func(seg *Segment) {
 		r.Depth += 1
 		if seg.IsVar {
 			r.IsStatic = false
 		}
 		buf.WriteRune('/')
 		buf.WriteString(seg.String())
+	}
+	// Parse path
+	if err := parse(tk, r.SegHead, cb); err != nil {
+		return err
 	}
 	r.Path = buf.String()
 	return nil

@@ -14,12 +14,14 @@ type _TransitionKey struct {
 
 type _TransitionResult struct {
 	NextState _ParseState
-	HasNext   bool
+	Finish    bool
 }
 
 type tokenizer interface {
 	Next() (string, _ParseToken)
 }
+
+type parseCallback func(*Segment)
 
 const (
 	tokenWord _ParseToken = iota
@@ -52,27 +54,27 @@ var (
 		{stateInit, tokenWord}: {stateName, false},
 		{stateInit, tokenKwAs}: {stateAs, false},
 		{stateInit, tokenKwBy}: {stateBy, false},
-		{stateInit, tokenEOL}:  {stateDone, false},
+		{stateInit, tokenEOL}:  {stateDone, true},
 
 		{stateName, tokenWord}: {stateName, true},
 		{stateName, tokenKwAs}: {stateAs, false},
 		{stateName, tokenKwBy}: {stateBy, true},
-		{stateName, tokenEOL}:  {stateDone, false},
+		{stateName, tokenEOL}:  {stateDone, true},
 
 		{stateAs, tokenWord}: {stateExt, false},
 
-		{stateExt, tokenEOL}: {stateDone, false},
+		{stateExt, tokenEOL}: {stateDone, true},
 
 		{stateBy, tokenWord}: {stateVar, false},
 
 		{stateVar, tokenWord}: {stateName, true},
 		{stateVar, tokenKwAs}: {stateAs, false},
 		{stateVar, tokenKwBy}: {stateBy, true},
-		{stateVar, tokenEOL}:  {stateDone, false},
+		{stateVar, tokenEOL}:  {stateDone, true},
 	}
 )
 
-func parse(tk tokenizer, head *Segment) error {
+func parse(tk tokenizer, head *Segment, cb parseCallback) error {
 	// Split request path
 	key, node := _TransitionKey{CurrState: stateInit}, head
 	for key.CurrState != stateDone {
@@ -83,9 +85,15 @@ func parse(tk tokenizer, head *Segment) error {
 		if res, ok := transitionTable[key]; !ok {
 			return fmt.Errorf("unexpected word: %s", word)
 		} else {
-			if res.HasNext && node.IsValid() {
-				node.Next = &Segment{}
-				node = node.Next
+			// Should current node be finished?
+			if res.Finish {
+				if cb != nil {
+					cb(node)
+				}
+				if res.NextState != stateDone {
+					node.Next = &Segment{}
+					node = node.Next
+				}
 			}
 			// Update state
 			key.CurrState = res.NextState
