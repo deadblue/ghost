@@ -1,6 +1,7 @@
 package view
 
 import (
+	"github.com/deadblue/ghost"
 	"io"
 	"net/http"
 )
@@ -16,6 +17,6 @@ func (v statusView) Body() io.Reader {
 }
 
 var (
-	NoContent   = statusView(http.StatusNoContent)
-	NotModified = statusView(http.StatusNotModified)
+	NoContent   ghost.View = statusView(http.StatusNoContent)
+	NotModified ghost.View = statusView(http.StatusNotModified)
 )
