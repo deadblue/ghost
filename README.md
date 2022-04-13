@@ -8,9 +8,9 @@ A simple HTTP server framework in Go, without any third-party dependencies.
 
 Use it ONLY when you seek for simpleness, and do not extremely eager for performance and robustness.
 
-**Since 0.1.x, this framework should be used in go 1.18 or above, because it uses generic.**
+**Since this framework is still W.I.P., all APIs are not stable.**
 
-**This framework is W.I.P., so the APIs are volatile, and there may be some unknown bugs in it.**
+**Starts from version 0.1.x, this framework should be used in go 1.18 or above, because it requires generic.**
 
 ## Usage
 

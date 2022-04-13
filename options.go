@@ -12,3 +12,8 @@ func ListenAt(network, address string) Option {
 		address: address,
 	}
 }
+
+// TODO: Add more options
+// Options in plan:
+//   1. CORS option: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+//   2. TLS option
