@@ -6,9 +6,10 @@ import (
 	"strings"
 )
 
-// Impl is the internal ghost.Context implementation.
+// Impl is the internal implementation of |ghost.Context|.
 // It is not goroutine-safe, so DO NOT use it in multi-goroutine.
 type Impl struct {
+	// Underlying HTTP request
 	r *http.Request
 
 	// Path variables
@@ -25,6 +26,7 @@ const (
 
 func (i *Impl) FromRequest(r *http.Request) *Impl {
 	i.r = r
+	i.pv = make(map[string]string)
 	return i
 }
 
@@ -83,4 +85,8 @@ func (i *Impl) RemoteIp() string {
 
 func (i *Impl) PathVar(name string) string {
 	return i.pv[name]
+}
+
+func (i *Impl) SetPathVar(name, value string) {
+	i.pv[name] = value
 }

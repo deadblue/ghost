@@ -80,7 +80,7 @@ type _ShellImpl struct {
 	// HTTP server
 	hs *http.Server
 	// engine
-	e _Engine
+	e *_Engine
 	// Closed flag
 	cf int32
 	// Error channel

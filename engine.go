@@ -3,6 +3,7 @@ package ghost
 import (
 	"fmt"
 	"github.com/deadblue/ghost/internal/context"
+	"github.com/deadblue/ghost/internal/route"
 	"github.com/deadblue/ghost/internal/view"
 	"io"
 	"log"
@@ -29,44 +30,50 @@ var (
 		runtime.GOOS, runtime.GOARCH, runtime.Version())
 )
 
-type _Engine interface {
-	http.Handler
-	StartupObserver
-	ShutdownObserver
-}
+type _Engine struct {
+	// Route registry
+	rt *route.Registry[_Handler]
 
-type _EngineImpl[Ghost any] struct {
-	// The ghost which implemented by user
-	g Ghost
-	// Route tree
-	rt *_RouteTable
+	// Startup observers
+	startObs []StartupObserver
+	// Shutdown observers
+	shutObs []ShutdownObserver
+
 	// HTTP status observer
 	sh StatusHandler
 }
 
-func (e *_EngineImpl[Ghost]) BeforeStartup() (err error) {
-	var ghost any = e.g
-	if ob, isImpl := ghost.(StartupObserver); isImpl {
-		err = ob.BeforeStartup()
+func (e *_Engine) BeforeStartup() (err error) {
+	if e.startObs == nil {
+		return
+	}
+	for _, ob := range e.startObs {
+		if err = ob.BeforeStartup(); err != nil {
+			return
+		}
 	}
 	return
 }
 
-func (e *_EngineImpl[Ghost]) AfterShutdown() (err error) {
-	var ghost any = e.g
-	if ob, isImpl := ghost.(ShutdownObserver); isImpl {
-		err = ob.AfterShutdown()
+func (e *_Engine) AfterShutdown() (err error) {
+	if e.shutObs == nil {
+		return
+	}
+	for _, ob := range e.shutObs {
+		_ = ob.AfterShutdown()
 	}
 	return
 }
 
-func (e *_EngineImpl[Ghost]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (e *_Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
 	ctx := (&context.Impl{}).FromRequest(r)
-	// Resolve controller
-	h, v := e.rt.Resolve(ctx), View(nil)
-	// Invoke controller
-	if h == nil {
+	// TODO: Automatically handle OPTION request
+	// Resolve handler
+	h, err := e.rt.Resolve(ctx.Method(), ctx.Path(), ctx)
+	v := View(nil)
+	// Invoke handler
+	if err != nil {
 		v = e.sh.OnStatus(http.StatusNotFound, ctx, nil)
 	} else {
 		v = e.invoke(h, ctx)
@@ -75,7 +82,7 @@ func (e *_EngineImpl[Ghost]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	e.render(ctx, v, w)
 }
 
-func (e *_EngineImpl[Ghost]) invoke(h _Handler[Ghost], ctx Context) (v View) {
+func (e *_Engine) invoke(h _Handler, ctx Context) (v View) {
 	defer func() {
 		// Catch panic here
 		if r := recover(); r != nil {
@@ -86,17 +93,17 @@ func (e *_EngineImpl[Ghost]) invoke(h _Handler[Ghost], ctx Context) (v View) {
 			}
 		}
 	}()
-	v, err := h(ctx)
+	v, err := h.Handle(ctx)
 	if err != nil {
 		v = e.sh.OnStatus(http.StatusInternalServerError, ctx, err)
 	}
 	return
 }
 
-func (e *_EngineImpl[Ghost]) render(ctx Context, v View, w http.ResponseWriter) {
+func (e *_Engine) render(ctx Context, v View, w http.ResponseWriter) {
 	// Ensure the view is not nil
 	if v == nil {
-		v = e.defaultView()
+		v = view.Http200
 	}
 	headers, body := w.Header(), v.Body()
 	// Prepare response header
@@ -123,12 +130,12 @@ func (e *_EngineImpl[Ghost]) render(ctx Context, v View, w http.ResponseWriter) 
 		// Try to set "Content-Length" when view does not set.
 		if headers.Get(_HeaderContentLength) == "" {
 			size := int64(0)
-			if a, ok := v.(ViewSizeAdviser); ok {
+			if impl1, ok1 := v.(ViewSizeAdviser); ok1 {
 				// Get size from view
-				size = a.ContentLength()
-			} else if l, ok := body.(bodyHasLength); ok {
+				size = impl1.ContentLength()
+			} else if impl2, ok2 := body.(bodyHasLength); ok2 {
 				// Auto-detect body size
-				size = int64(l.Len())
+				size = int64(impl2.Len())
 			}
 			if size > 0 {
 				headers.Set(_HeaderContentLength, strconv.FormatInt(size, 10))
@@ -149,36 +156,45 @@ func (e *_EngineImpl[Ghost]) render(ctx Context, v View, w http.ResponseWriter) 
 	}
 }
 
-func (e *_EngineImpl[Ghost]) install(ghost Ghost) {
-	// Initialize engine
-	e.g, e.rt = ghost, &_RouteTable{
-		st: make(map[string]_Handler),
-	}
-	// Scan implemented interfaces on ghost
+func (e *_Engine) addStartupObserver(ob StartupObserver) {
+	e.startObs = append(e.startObs, ob)
+}
+
+func (e *_Engine) addShutdownObserver(ob ShutdownObserver) {
+	e.shutObs = append(e.shutObs, ob)
+}
+
+// "install" installs ghost on engine
+func install[G any](engine *_Engine, ghost G) {
+	// Scan implemented interfaces
 	var v any = ghost
 	if sh, isImpl := v.(StatusHandler); isImpl {
-		e.sh = sh
+		engine.sh = sh
 	} else {
-		e.sh = defaultStatusHandler
+		engine.sh = defaultStatusHandler
 	}
-	// Scan controller
+	if ob, isImpl := v.(StartupObserver); isImpl {
+		engine.addStartupObserver(ob)
+	}
+	if ob, isImpl := v.(ShutdownObserver); isImpl {
+		engine.addShutdownObserver(ob)
+	}
+
+	// Scan handle functions
+	if engine.rt == nil {
+		engine.rt = (&route.Registry[_Handler]{}).Init()
+	}
 	rt := reflect.TypeOf(ghost)
 	for i := 0; i < rt.NumMethod(); i++ {
 		m := rt.Method(i)
 		mn, mf := m.Name, m.Func.Interface()
 		// Check method function signature
-		if fn, ok := mf.(func(Ghost, Context) (View, error)); ok {
-			hdl := func(ctx Context) (View, error) {
-				return fn(ghost, ctx)
-			}
-			if err := e.rt.Mount(mn, hdl); err == nil {
-				log.Printf("Mount controller: %s", m.Name)
+		if h, ok := asHandler(mf, ghost); ok {
+			if err := engine.rt.Mount(mn, h); err == nil {
+				log.Printf("Mount method [%s] => %p", mn, h)
+			} else {
+				log.Printf("Mount method [%s] failed: %s", mn, err.Error())
 			}
 		}
 	}
-}
-
-// defaultView returns HTTP 200 empty view.
-func (e *_EngineImpl[Ghost]) defaultView() View {
-	return view.Http200
 }

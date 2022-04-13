@@ -63,7 +63,7 @@ func main() {
 
 ## Mechanism
 
-Each method on the ghost object, which is in form of `ghost.Controller`, will be mounted as a request handler. 
+Each method on your ghost, whose signature is `func(ghost.Context) (ghost.View, error)`, will be mounted as a request handler. 
 
 The method name, will be translated as the mount path, following these rules:
 
@@ -99,13 +99,13 @@ There are some optional interfaces for your ghost, to make it more powerful:
 
 Please check the reference for detail.
 
-## Restrictions
+## Limitations
 
-According to the design and mechanism, GHOST has the following restrictions:
+According to the design and mechanism, GHOST has the following limitations:
 
 * GHOST can only handle the request in which each path segment is in lower case.
 * There can be only one path variable in each path segment.
-* The path variable can only consist of alphabet, numeric and underscore.
+* GHOST does not support TLS now, if needed, pls run it behind an HTTP Reversed Proxy (Such as nginx/AHS).
 
 ## License
 

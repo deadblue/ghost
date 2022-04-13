@@ -14,8 +14,8 @@ const (
 // network and address.
 func Born[Ghost any](ghost Ghost, options ...Option) Shell {
 	// Create engine
-	engine := &_EngineImpl[Ghost]{}
-	engine.install(ghost)
+	engine := &_Engine{}
+	install(engine, ghost)
 	// Create shell
 	shell := &_ShellImpl{
 		// Listener network and address

@@ -14,18 +14,16 @@ type Context interface {
 	// Method returns request method.
 	Method() string
 
+	// Path returns request path.
+	Path() string
+
 	// Scheme returns request scheme(http/https).
 	Scheme() string
 
 	// Host returns request server host.
 	Host() string
 
-	// Path returns request path.
-	Path() string
-
-	BaseName() string
-
-	// Body return request body.
+	// Body return a reader for request body.
 	Body() io.Reader
 
 	// RemoteIp returns the client IP.
