@@ -1,26 +1,21 @@
 package route
 
 import (
-	"errors"
 	"fmt"
 	"github.com/deadblue/ghost/internal/route/method"
 	"github.com/deadblue/ghost/internal/route/parser"
-)
-
-var (
-	errNotFound = errors.New("can not resolve")
 )
 
 type Registry[T any] struct {
 	// Strict table
 	st _StrictTable[T]
 	// Path tree
-	pt _RouteTrees[T]
+	pt _PathTrees[T]
 }
 
 func (r *Registry[T]) Init() *Registry[T] {
 	r.st = _StrictTable[T]{}
-	r.pt = _RouteTrees[T]{}
+	r.pt = _PathTrees[T]{}
 	return r
 }
 

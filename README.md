@@ -4,13 +4,11 @@
 [![Reference](https://img.shields.io/:Go-Reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/deadblue/ghost)
 ![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 
-A simple HTTP server framework in Go, without any third-party dependencies.
+A simple HTTP server framework for Go, bases on std `net/http` package.
 
-Use it ONLY when you seek for simpleness, and do not extremely eager for performance and robustness.
+**Starts from 0.1.x, this framework should be used in go 1.18 or above, because it requires generic.**
 
 **Since this framework is still W.I.P., all APIs are not stable.**
-
-**Starts from version 0.1.x, this framework should be used in go 1.18 or above, because it requires generic.**
 
 ## Usage
 
@@ -95,7 +93,7 @@ There are some optional interfaces for your ghost, to make it more powerful:
 
 * StartupObserver
 * ShutdownObserver
-* StatusHandler
+* ErrorHandler
 
 Please check the reference for detail.
 

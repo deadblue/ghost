@@ -1,25 +1,28 @@
 package ghost
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"github.com/deadblue/ghost/internal/container"
 	"github.com/deadblue/ghost/internal/context"
 	"github.com/deadblue/ghost/internal/route"
 	"github.com/deadblue/ghost/internal/view"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"path"
-	"reflect"
 	"runtime"
 	"strconv"
 )
 
 const (
-	// Special response headers
-	_HeaderServer        = "Server"
+	// Server header
+	_HeaderServer = "Server"
+	// Content headers
 	_HeaderContentType   = "Content-Type"
 	_HeaderContentLength = "Content-Length"
+
 	// Default header value
 	_DefaultContentType = "application/octet-stream"
 )
@@ -28,6 +31,8 @@ var (
 	// Server token in response header
 	_ServerToken = fmt.Sprintf("Ghost/%s (%s/%s %s)", Version,
 		runtime.GOOS, runtime.GOARCH, runtime.Version())
+
+	ErrNotFound = errors.New("not found")
 )
 
 type _Engine struct {
@@ -35,19 +40,16 @@ type _Engine struct {
 	rt *route.Registry[_Handler]
 
 	// Startup observers
-	startObs []StartupObserver
+	startupObs container.List[StartupObserver]
 	// Shutdown observers
-	shutObs []ShutdownObserver
-
-	// HTTP status observer
-	sh StatusHandler
+	shutdownObs container.List[ShutdownObserver]
+	// Error handler
+	eh ErrorHandler
 }
 
 func (e *_Engine) BeforeStartup() (err error) {
-	if e.startObs == nil {
-		return
-	}
-	for _, ob := range e.startObs {
+	for ok := e.startupObs.GoFirst(); ok; ok = e.startupObs.Forward() {
+		_, ob := e.startupObs.Get()
 		if err = ob.BeforeStartup(); err != nil {
 			return
 		}
@@ -56,11 +58,11 @@ func (e *_Engine) BeforeStartup() (err error) {
 }
 
 func (e *_Engine) AfterShutdown() (err error) {
-	if e.shutObs == nil {
-		return
-	}
-	for _, ob := range e.shutObs {
-		_ = ob.AfterShutdown()
+	for ok := e.shutdownObs.GoLast(); ok; ok = e.shutdownObs.Backward() {
+		_, ob := e.shutdownObs.Get()
+		if err = ob.AfterShutdown(); err != nil {
+			return
+		}
 	}
 	return
 }
@@ -68,39 +70,45 @@ func (e *_Engine) AfterShutdown() (err error) {
 func (e *_Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
 	ctx := (&context.Impl{}).FromRequest(r)
-	// TODO: Automatically handle OPTION request
-	// Resolve handler
-	h, err := e.rt.Resolve(ctx.Method(), ctx.Path(), ctx)
-	v := View(nil)
-	// Invoke handler
-	if err != nil {
-		v = e.sh.OnStatus(http.StatusNotFound, ctx, nil)
-	} else {
-		v = e.invoke(h, ctx)
+	// Handle special request method
+	method := ctx.Method()
+	switch method {
+	case http.MethodHead:
+		// For HEAD request, change method to GET
+		method = http.MethodGet
+		w = &_HeadResponseWriter{rw: w}
+	case http.MethodOptions:
+		// TODO: Handle CORS request
 	}
-	// Render view
-	e.render(ctx, v, w)
+	// Resolve handler
+	h := e.rt.Resolve(method, ctx.Path(), ctx)
+	v := e.dispatch(h, ctx)
+	e.renderView(ctx, v, w)
 }
 
-func (e *_Engine) invoke(h _Handler, ctx Context) (v View) {
+// dispatch calls handler with context, and catch error.
+func (e *_Engine) dispatch(h _Handler, ctx Context) (v View) {
+	if h == nil {
+		return e.eh.OnError(ctx, ErrNotFound)
+	}
 	defer func() {
 		// Catch panic here
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
-				v = e.sh.OnStatus(http.StatusInternalServerError, ctx, err)
+				v = e.eh.OnError(ctx, err)
 			} else {
-				v = e.sh.OnStatus(http.StatusInternalServerError, ctx, fmt.Errorf("panic: %v", r))
+				v = e.eh.OnError(ctx, fmt.Errorf("panic: %v", r))
 			}
 		}
 	}()
-	v, err := h.Handle(ctx)
-	if err != nil {
-		v = e.sh.OnStatus(http.StatusInternalServerError, ctx, err)
+	var err error
+	if v, err = h.Handle(ctx); err != nil {
+		v = e.eh.OnError(ctx, err)
 	}
 	return
 }
 
-func (e *_Engine) render(ctx Context, v View, w http.ResponseWriter) {
+func (e *_Engine) renderView(ctx Context, v View, w http.ResponseWriter) {
 	// Ensure the view is not nil
 	if v == nil {
 		v = view.Http200
@@ -112,32 +120,15 @@ func (e *_Engine) render(ctx Context, v View, w http.ResponseWriter) {
 	if hi, ok := v.(ViewHeaderInterceptor); ok {
 		hi.BeforeSendHeader(headers)
 	}
-	// Set Content-Type and Content-Length at last
+	// Set Content-Type and Content-Length
 	if body != nil {
-		// Try to set "Content-Type", when view does not set.
+		// Try to set "Content-Type", when view does not set it.
 		if headers.Get(_HeaderContentType) == "" {
-			ct := ""
-			if a, ok := v.(ViewTypeAdviser); ok {
-				ct = a.ContentType()
-			} else {
-				ct = mime.TypeByExtension(path.Ext(ctx.Path()))
-			}
-			if ct == "" {
-				ct = _DefaultContentType
-			}
-			headers.Set(_HeaderContentType, ct)
+			headers.Set(_HeaderContentType, determineContentType(v, path.Ext(ctx.Path())))
 		}
-		// Try to set "Content-Length" when view does not set.
+		// Try to set "Content-Length" when view does not set it.
 		if headers.Get(_HeaderContentLength) == "" {
-			size := int64(0)
-			if impl1, ok1 := v.(ViewSizeAdviser); ok1 {
-				// Get size from view
-				size = impl1.ContentLength()
-			} else if impl2, ok2 := body.(bodyHasLength); ok2 {
-				// Auto-detect body size
-				size = int64(impl2.Len())
-			}
-			if size > 0 {
+			if size := determineContentLength(v); size >= 0 {
 				headers.Set(_HeaderContentLength, strconv.FormatInt(size, 10))
 			}
 		}
@@ -156,45 +147,30 @@ func (e *_Engine) render(ctx Context, v View, w http.ResponseWriter) {
 	}
 }
 
-func (e *_Engine) addStartupObserver(ob StartupObserver) {
-	e.startObs = append(e.startObs, ob)
+func determineContentType(v View, ext string) string {
+	if a, ok := v.(ViewTypeAdviser); ok {
+		return a.ContentType()
+	}
+	if mt := mime.TypeByExtension(ext); mt != "" {
+		return mt
+	}
+	return _DefaultContentType
 }
 
-func (e *_Engine) addShutdownObserver(ob ShutdownObserver) {
-	e.shutObs = append(e.shutObs, ob)
+type _SizeInterface interface {
+	Size() int64
 }
 
-// "install" installs ghost on engine
-func install[G any](engine *_Engine, ghost G) {
-	// Scan implemented interfaces
-	var v any = ghost
-	if sh, isImpl := v.(StatusHandler); isImpl {
-		engine.sh = sh
-	} else {
-		engine.sh = defaultStatusHandler
+func determineContentLength(v View) int64 {
+	if a, ok := v.(ViewSizeAdviser); ok {
+		return a.ContentLength()
 	}
-	if ob, isImpl := v.(StartupObserver); isImpl {
-		engine.addStartupObserver(ob)
+	body := v.Body()
+	if i, ok := body.(_SizeInterface); ok {
+		return i.Size()
 	}
-	if ob, isImpl := v.(ShutdownObserver); isImpl {
-		engine.addShutdownObserver(ob)
+	if b, ok := body.(*bytes.Buffer); ok {
+		return int64(b.Len())
 	}
-
-	// Scan handle functions
-	if engine.rt == nil {
-		engine.rt = (&route.Registry[_Handler]{}).Init()
-	}
-	rt := reflect.TypeOf(ghost)
-	for i := 0; i < rt.NumMethod(); i++ {
-		m := rt.Method(i)
-		mn, mf := m.Name, m.Func.Interface()
-		// Check method function signature
-		if h, ok := asHandler(mf, ghost); ok {
-			if err := engine.rt.Mount(mn, h); err == nil {
-				log.Printf("Mount method [%s] => %p", mn, h)
-			} else {
-				log.Printf("Mount method [%s] failed: %s", mn, err.Error())
-			}
-		}
-	}
+	return -1
 }

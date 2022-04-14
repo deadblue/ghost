@@ -1,8 +1,10 @@
 package ghost
 
 import (
+	"github.com/deadblue/ghost/option"
 	"log"
 	"net/http"
+	"time"
 )
 
 const (
@@ -10,9 +12,8 @@ const (
 	DefaultAddress = "127.0.0.1:9057"
 )
 
-// Born creates a Shell with your ghost, which will listen at default
-// network and address.
-func Born[Ghost any](ghost Ghost, options ...Option) Shell {
+// Born builds a Shell for your ghost.
+func Born[Ghost any](ghost Ghost, options ...option.Option) Shell {
 	// Create engine
 	engine := &_Engine{}
 	install(engine, ghost)
@@ -31,15 +32,28 @@ func Born[Ghost any](ghost Ghost, options ...Option) Shell {
 		errCh: make(chan error),
 	}
 	// Apply options
-	// TODO: Support more options
+	applyOptions(shell, options)
+	return shell
+}
+
+func applyOptions(shell *_ShellImpl, options []option.Option) {
 	for _, opt := range options {
 		switch opt.(type) {
-		case optListen:
-			ol := opt.(optListen)
-			shell.ln, shell.la = ol.network, ol.address
+		case option.ListenOption:
+			no := opt.(option.ListenOption)
+			shell.ln, shell.la = no.Network, no.Address
+		case *option.TlsOption:
+			shell.tc = opt.(*option.TlsOption).Config
+		case option.ReadTimeoutOption:
+			shell.hs.ReadTimeout = time.Duration(opt.(option.ReadTimeoutOption))
+		case option.ReadHeaderTimeoutOption:
+			shell.hs.ReadHeaderTimeout = time.Duration(opt.(option.ReadHeaderTimeoutOption))
+		case option.WriteTimeoutOption:
+			shell.hs.WriteTimeout = time.Duration(opt.(option.WriteTimeoutOption))
+		case option.IdleTimeoutOption:
+			shell.hs.IdleTimeout = time.Duration(opt.(option.IdleTimeoutOption))
 		default:
 			log.Printf("Unsupported option: %#v", opt)
 		}
 	}
-	return shell
 }

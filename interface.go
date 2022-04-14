@@ -19,10 +19,10 @@ type ShutdownObserver interface {
 	AfterShutdown() error
 }
 
-// StatusHandler is an optional interface for your ghost, which allows developer to
+// ErrorHandler is an optional interface for your ghost, which allows developer to
 // customize the view when HTTP 40x and 50x error occurred.
-type StatusHandler interface {
+type ErrorHandler interface {
 
-	// OnStatus will be called when HTTP 40x and 50x error occurred.
-	OnStatus(status int, ctx Context, err error) View
+	// OnError will be called when HTTP 40x and 50x error occurred.
+	OnError(ctx Context, err error) View
 }

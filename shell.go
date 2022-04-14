@@ -2,6 +2,7 @@ package ghost
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"log"
 	"net"
@@ -75,8 +76,10 @@ type Shell interface {
 
 // _ShellImpl is implementation of Shell interface.
 type _ShellImpl struct {
-	// The network and address of listener
+	// Listener network and address
 	ln, la string
+	// TLS config
+	tc *tls.Config
 	// HTTP server
 	hs *http.Server
 	// engine
@@ -119,7 +122,13 @@ func (s *_ShellImpl) Startup() (err error) {
 	if ul, ok := nl.(*net.UnixListener); ok {
 		ul.SetUnlinkOnClose(true)
 	}
-	log.Printf("Shell working at: %s://%s", s.ln, s.la)
+	// TLS listener
+	if s.tc != nil {
+		nl = tls.NewListener(nl, s.tc)
+		log.Printf("Shell working at: %s+tls://%s", s.ln, s.la)
+	} else {
+		log.Printf("Shell working at: %s://%s", s.ln, s.la)
+	}
 	// Start serve
 	go s.serve(nl)
 	return
