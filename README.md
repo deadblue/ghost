@@ -1,10 +1,11 @@
-<p style="text-align: center;"><img src="assets/ghost.png" alt="drawing" width="256"/></p>
+<p aligh="center"><img src="assets/ghost.png" alt="drawing" width="256"/></p>
+<p aligh="center">
+  <img src="https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square"/>
+  <a href="https://pkg.go.dev/github.com/deadblue/ghost"><img src="https://img.shields.io/:Go-Doc-blue.svg?style=flat-square"/></a>
+  <img src="https://img.shields.io/:License-MIT-green.svg?style=flat-square"/>
+</p>
 
 # GHOST
-
-![Version](https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square)
-[![Reference](https://img.shields.io/:Go-Reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/deadblue/ghost)
-![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
 
 A simple HTTP server framework for Go, bases on std `net/http` package.
 
