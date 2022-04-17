@@ -1,8 +1,8 @@
-<p aligh="center"><img src="assets/ghost.png" alt="drawing" width="256"/></p>
-<p aligh="center">
-  <img src="https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square"/>
-  <a href="https://pkg.go.dev/github.com/deadblue/ghost"><img src="https://img.shields.io/:Go-Doc-blue.svg?style=flat-square"/></a>
-  <img src="https://img.shields.io/:License-MIT-green.svg?style=flat-square"/>
+<p align="center"><img src="assets/ghost.png" alt="drawing" width="256"/></p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square" alt="Version"/>
+  <a href="https://pkg.go.dev/github.com/deadblue/ghost"><img src="https://img.shields.io/:Go-Doc-blue.svg?style=flat-square" alt="Doc"/></a>
+  <img src="https://img.shields.io/:License-MIT-green.svg?style=flat-square" alt="License"/>
 </p>
 
 # GHOST
