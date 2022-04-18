@@ -2,7 +2,12 @@ package context
 
 import (
 	"encoding/json"
+	"errors"
 	"mime"
+)
+
+var (
+	errNotJson = errors.New("request content is not application/json")
 )
 
 func (i *Impl) Json(v interface{}) (err error) {

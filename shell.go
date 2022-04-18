@@ -23,8 +23,7 @@ You can use Shell in two ways:
 
 	// Create a shell from your ghost.
 	shell := ghost.Born(&YourGhost{})
-
-	// Way 1: Just run the shell, wait for it shut down completely.
+	// Just run the shell, Run will return when shell completely shut down.
 	if err := shell.Run(); err != nil {
 		panic(err)
 	}
@@ -33,7 +32,6 @@ You can use Shell in two ways:
 
 	// Create a shell from your ghost.
 	shell := ghost.Born(&YourGhost{})
-
 	// Start up the shell.
 	if err := shell.Startup(); err != nil {
 		panic(err)
@@ -71,9 +69,10 @@ type Shell interface {
 	// yourself. Otherwise, just use Run.
 	Done() <-chan error
 
-	// Run automatically runs the shell, and shutdown it when receive specific
-	// OS signals, Run will exit after the shell completely shutdown.
-	// If no signal set, shell will handle SIGINT and SIGTERM as default.
+	// Run starts up the shell, and wait for it normally shut down or exit with
+	// error.
+	// Run will shut down shell when receives specific OS signals. If no signal
+	// set, it will handle SIGINT and SIGTERM as default.
 	Run(sig ...os.Signal) error
 }
 

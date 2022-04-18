@@ -39,9 +39,9 @@ func Born[Ghost any](ghost Ghost, options ...option.Option) Shell {
 func applyOptions(shell *_ShellImpl, options []option.Option) {
 	for _, opt := range options {
 		switch opt.(type) {
-		case option.ListenOption:
-			no := opt.(option.ListenOption)
-			shell.ln, shell.la = no.Network, no.Address
+		case *option.ListenOption:
+			lo := opt.(*option.ListenOption)
+			shell.ln, shell.la = lo.Network, lo.Address
 		case *option.TlsOption:
 			shell.tc = opt.(*option.TlsOption).Config
 		case option.ReadTimeoutOption:

@@ -9,13 +9,20 @@ type ListenOption struct {
 	Address string
 }
 
-func (o ListenOption) isOption() {}
+func (o *ListenOption) isOption() {}
 
-func ListenTcp(ip string, port uint16) Option {
-	addr := fmt.Sprintf("%s:%d", ip, port)
-	return ListenAddr(addr)
+func Listen(network, address string) Option {
+	return &ListenOption{Network: network, Address: address}
 }
 
-func ListenAddr(addr string) Option {
-	return ListenOption{Network: "tcp", Address: addr}
+func ListenPort(port uint16) Option {
+	return ListenTcp(fmt.Sprintf(":%d", port))
+}
+
+func ListenIpAndPort(ip string, port uint16) Option {
+	return ListenTcp(fmt.Sprintf("%s:%d", ip, port))
+}
+
+func ListenTcp(addr string) Option {
+	return &ListenOption{Network: "tcp", Address: addr}
 }

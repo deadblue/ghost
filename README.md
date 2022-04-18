@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/ghost.png" alt="drawing" width="256"/></p>
+<p align="center"><img src="docs/assets/ghost.png" alt="drawing" width="256"/></p>
 <p align="center">
   <img src="https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square" alt="Version"/>
   <a href="https://pkg.go.dev/github.com/deadblue/ghost"><img src="https://img.shields.io/:Go-Doc-blue.svg?style=flat-square" alt="Doc"/></a>
@@ -9,7 +9,7 @@
 
 A simple HTTP server framework for Go, bases on std `net/http` package.
 
-**Starts from 0.1.x, this framework should be used in go 1.18 or above, because it requires generic.**
+**Starts from 0.1.x, this framework should be used in go 1.18 or above, because it requires generics.**
 
 ## Usage
 
@@ -103,10 +103,11 @@ Please check the reference for detail.
 
 ## Limitations
 
-According to the design and mechanism, GHOST has the following limitations:
+Bases on the design and mechanism, GHOST has the following limitations:
 
 * GHOST can only handle the request in which each path segment is in lower case.
 * There can be only one path variable in each path segment.
+* You can not use GHOST to make a WebSocket server.
 
 ## License
 

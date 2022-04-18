@@ -15,6 +15,8 @@ var (
 // Implant implants other ghosts into shell, and use "root" as prefix. "root"
 // should not be empty and should start with "/".
 //
+// NOTE: This function is not goroutine-safety, DO NOT call it in multiple goroutines.
+//
 // Example:
 //
 //     shell := Born(&MasterGhost{})
@@ -22,8 +24,8 @@ var (
 //     Implant(shell, &BarGhost{}, "/bar")
 //     shell.Run()
 //
-// Q: Why not method?
-// A: Because Go DOES NOT allow using type parameter in method!
+// Q: Why is Implant not a method on Shell?
+// A: Because Go DOES NOT allow using type parameter in method :(
 func Implant[G any](shell Shell, ghost G, root string) (err error) {
 	if root[0] != '/' {
 		return errInvalidRootPath
@@ -59,15 +61,15 @@ func internalImplant[G any](kernel *_Kernel, ghost G, root string, isMaster bool
 	log.Printf("Implanting ghost: %s", gn)
 
 	// Scan handle functions
-	if kernel.rt == nil {
-		kernel.rt = (&route.Registry[_Handler]{}).Init()
+	if kernel.rr == nil {
+		kernel.rr = (&route.Registry[_Handler]{}).Init()
 	}
 	for i := 0; i < rt.NumMethod(); i++ {
 		m := rt.Method(i)
 		mn, mf := m.Name, m.Func.Interface()
 		// Check method function signature
 		if h, ok := asHandler(mf, ghost); ok {
-			if rule, err := kernel.rt.Mount(mn, root, h); err == nil {
+			if rule, err := kernel.rr.Mount(mn, root, h); err == nil {
 				log.Printf("Mount method [%s.%s] => [%s]", gn, mn, rule)
 			} else {
 				log.Printf("Mount method [%s.%s] failed: %s", gn, mn, err.Error())

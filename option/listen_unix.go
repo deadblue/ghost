@@ -3,5 +3,5 @@
 package option
 
 func ListenUnix(path string) Option {
-	return ListenOption{Network: "unix", Address: path}
+	return &ListenOption{Network: "unix", Address: path}
 }

@@ -37,7 +37,7 @@ var (
 
 type _Kernel struct {
 	// Route registry
-	rt *route.Registry[_Handler]
+	rr *route.Registry[_Handler]
 
 	// Startup observers
 	startupObs container.List[StartupObserver]
@@ -70,24 +70,19 @@ func (k *_Kernel) AfterShutdown() (err error) {
 func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
 	ctx := (&context.Impl{}).FromRequest(r)
-	// Handle special request method
-	method := ctx.Method()
-	switch method {
+	// Handle request
+	switch r.Method {
 	case http.MethodHead:
-		// For HEAD request, change method to GET
-		method = http.MethodGet
-		w = &_HeadResponseWriter{rw: w}
-	case http.MethodOptions:
-		// TODO: Handle CORS request
+		// HEAD request should be handled as GET request
+		r.Method, w = http.MethodGet, &_HeadResponseWriter{rw: w}
 	}
-	// Resolve handler
-	h := k.rt.Resolve(method, ctx.Path(), ctx)
-	v := k.dispatch(h, ctx)
+	v := k.dispatch(ctx)
 	k.renderView(ctx, v, w)
 }
 
-// dispatch calls handler with context, and catch error.
-func (k *_Kernel) dispatch(h _Handler, ctx Context) (v View) {
+// dispatch calls handler with context
+func (k *_Kernel) dispatch(ctx *context.Impl) (v View) {
+	h := k.rr.Resolve(ctx.Method(), ctx.Path(), ctx)
 	if h == nil {
 		return k.eh.OnError(ctx, ErrNotFound)
 	}
