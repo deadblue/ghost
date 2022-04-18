@@ -46,7 +46,3 @@ type ViewHeaderInterceptor interface {
 	// View can add/update/remove any headers in it.
 	BeforeSendHeader(h http.Header)
 }
-
-type bodyHasLength interface {
-	Len() int
-}

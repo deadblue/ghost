@@ -1,20 +1,19 @@
-# GHOST 👻
+<p align="center"><img src="docs/assets/ghost.png" alt="drawing" width="256"/></p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square" alt="Version"/>
+  <a href="https://pkg.go.dev/github.com/deadblue/ghost"><img src="https://img.shields.io/:Go-Doc-blue.svg?style=flat-square" alt="Doc"/></a>
+  <img src="https://img.shields.io/:License-MIT-green.svg?style=flat-square" alt="License"/>
+</p>
 
-![Version](https://img.shields.io/badge/Release-v0.1.1-brightgreen?style=flat-square)
-[![Reference](https://img.shields.io/:Go-Reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/deadblue/ghost)
-![License](https://img.shields.io/:License-MIT-green.svg?style=flat-square)
+# GHOST
 
-A simple HTTP server framework in Go, without any third-party dependencies.
+A simple HTTP server framework for Go, bases on std `net/http` package.
 
-Use it ONLY when you seek for simpleness, and do not extremely eager for performance and robustness.
-
-**Since this framework is still W.I.P., all APIs are not stable.**
-
-**Starts from version 0.1.x, this framework should be used in go 1.18 or above, because it requires generic.**
+**Starts from 0.1.x, this framework should be used in go 1.18 or above, because it requires generics.**
 
 ## Usage
 
-All you need to do, is to make an interesting ghost, then run it.
+Just make an interesting ghost with all your businesses, then run it.
 
 ```go
 package main
@@ -24,27 +23,29 @@ import (
     "github.com/deadblue/ghost/view"
 )
 
+// YourGhost does all your businesses.
 type YourGhost struct{}
 
-// Get will handle request "GET /"
+// Get will handle request "GET /".
 func (g *YourGhost) Get(_ ghost.Context) (ghost.View, error) {
     return view.Text("You are here!"), nil
 }
 
-// GetIndexAsHtml will handle request "GET /index.html"
+// GetIndexAsHtml will handle request "GET /index.html".
 func (g *YourGhost) GetIndexAsHtml(_ ghost.Context) (ghost.View, error) {
     return view.Text("index.html"), nil
 }
 
-// GetDataById will handle request "GET /data/{id}", where the "id" is a path variable.
+// GetDataById will handle request "GET /data/{id}".
 func (g *YourGhost) GetDataById(ctx ghost.Context) (ghost.View, error) {
+	// Get "id" from path variable
     dataId := ctx.PathVar("id")
     return view.Text("Getting data whose id is " + dataId), nil
 }
 
-// PostUpdate will handle request "POST /update" 
+// PostUpdate will handle request "POST /update".
 func (g *YourGhost) PostUpdate(ctx ghost.Context) (ghost.View, error) {
-    // Get post data from ctx.Request()
+    // TODO: Get post data from ctx.Request()
     return view.Text("Update done!"), nil
 }
 
@@ -54,6 +55,7 @@ func (g *YourGhost) BuyMeACoffee(_ ghost.Context) (ghost.View, error) {
 }
 
 func main() {
+	// Give me your ghost, I'll run it as an HTTP server.
     err := ghost.Born(&YourGhost{}).Run()
     if err != nil {
         panic(err)
@@ -91,21 +93,21 @@ For examples:
 
 ## Accessories
 
-There are some optional interfaces for your ghost, to make it more powerful:
+There are some optional interfaces, you can implement on your ghost.
 
 * StartupObserver
 * ShutdownObserver
-* StatusHandler
+* ErrorHandler
 
 Please check the reference for detail.
 
 ## Limitations
 
-According to the design and mechanism, GHOST has the following limitations:
+Bases on the design and mechanism, GHOST has the following limitations:
 
 * GHOST can only handle the request in which each path segment is in lower case.
 * There can be only one path variable in each path segment.
-* GHOST does not support TLS now, if needed, pls run it behind an HTTP Reversed Proxy (Such as nginx/AHS).
+* You can not use GHOST to make a WebSocket server.
 
 ## License
 

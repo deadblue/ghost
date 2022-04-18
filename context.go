@@ -17,14 +17,17 @@ type Context interface {
 	// Path returns request path.
 	Path() string
 
+	// Body returns a reader for request body.
+	Body() io.Reader
+
+	// Header returns request header with specific name.
+	Header(name string) (string, bool)
+
 	// Scheme returns request scheme(http/https).
 	Scheme() string
 
 	// Host returns request server host.
 	Host() string
-
-	// Body return a reader for request body.
-	Body() io.Reader
 
 	// RemoteIp returns the client IP.
 	RemoteIp() string

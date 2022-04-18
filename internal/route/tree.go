@@ -54,9 +54,9 @@ type _TreeKey struct {
 	depth  int
 }
 
-type _RouteTrees[T any] map[_TreeKey]*_TreeNode[T]
+type _PathTrees[T any] map[_TreeKey]*_TreeNode[T]
 
-func (t _RouteTrees[T]) FindTree(method, ext string, depth int) (node *_TreeNode[T], found bool) {
+func (t _PathTrees[T]) FindTree(method, ext string, depth int) (node *_TreeNode[T], found bool) {
 	key := _TreeKey{
 		method: method,
 		ext:    ext,
@@ -67,7 +67,7 @@ func (t _RouteTrees[T]) FindTree(method, ext string, depth int) (node *_TreeNode
 }
 
 // GetTree tries to find an exists tree, and it will create one if not found.
-func (t _RouteTrees[T]) GetTree(method, ext string, depth int) *_TreeNode[T] {
+func (t _PathTrees[T]) GetTree(method, ext string, depth int) *_TreeNode[T] {
 	key := _TreeKey{
 		method: method,
 		ext:    ext,

@@ -15,11 +15,17 @@ func Parse(text string, rule *parser.Rule) (err error) {
 	tk := (&tokenizer{}).Init(text)
 	// Method name
 	rule.Method = strings.ToUpper(tk.Next())
-	rule.IsStrict, rule.Depth = true, 0
-	// Split path
-	key, piece := _TransitionKey{CurrState: stateInit}, &parser.PathPiece{}
 	// Path buffer
 	buf := strings.Builder{}
+	if rule.Depth > 0 {
+		for ok := rule.Pieces.GoFirst(); ok; ok = rule.Pieces.Forward() {
+			_, piece := rule.Pieces.Get()
+			buf.WriteRune('/')
+			buf.WriteString(piece.String())
+		}
+	}
+	// Split path
+	key, piece := _TransitionKey{CurrState: stateInit}, &parser.PathPiece{}
 	for key.CurrState != stateDone {
 		word := strings.ToLower(tk.Next())
 		key.Token = _Word(word).Token()

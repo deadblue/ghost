@@ -16,14 +16,6 @@ type Impl struct {
 	pv map[string]string
 }
 
-const (
-	headerForwardedFor   = "X-Forwarded-For"
-	headerForwardedProto = "X-Forwarded-Proto"
-	headerForwardedHost  = "X-Forwarded-Host"
-
-	headerCfConnectingIp = "Cf-Connecting-Ip"
-)
-
 func (i *Impl) FromRequest(r *http.Request) *Impl {
 	i.r = r
 	i.pv = make(map[string]string)
@@ -36,6 +28,20 @@ func (i *Impl) Request() *http.Request {
 
 func (i *Impl) Method() string {
 	return i.r.Method
+}
+
+func (i *Impl) Path() string {
+	return i.r.URL.Path
+}
+
+func (i *Impl) Body() io.Reader {
+	return i.r.Body
+}
+
+func (i *Impl) Header(name string) (value string, found bool) {
+	value = i.r.Header.Get(name)
+	found = value != ""
+	return
 }
 
 func (i *Impl) Scheme() string {
@@ -52,18 +58,6 @@ func (i *Impl) Host() string {
 		host = i.r.Host
 	}
 	return host
-}
-
-func (i *Impl) Path() string {
-	return i.r.URL.Path
-}
-
-func (i *Impl) BaseName() string {
-	return ""
-}
-
-func (i *Impl) Body() io.Reader {
-	return i.r.Body
 }
 
 func (i *Impl) RemoteIp() string {
