@@ -14,9 +14,9 @@ const (
 
 // Born builds a Shell for your ghost.
 func Born[Ghost any](ghost Ghost, options ...option.Option) Shell {
-	// Create engine
-	engine := &_Engine{}
-	install(engine, ghost)
+	// Create kernel
+	kernel := &_Kernel{}
+	internalImplant(kernel, ghost, "/", true)
 	// Create shell
 	shell := &_ShellImpl{
 		// Listener network and address
@@ -24,9 +24,9 @@ func Born[Ghost any](ghost Ghost, options ...option.Option) Shell {
 		la: DefaultAddress,
 		// HTTP server
 		hs: &http.Server{
-			Handler: engine,
+			Handler: kernel,
 		},
-		e: engine,
+		kn: kernel,
 
 		cf:    0,
 		errCh: make(chan error),

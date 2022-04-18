@@ -53,28 +53,3 @@ func (r *Registry[T]) Resolve(method, path string, pvr PathVariableReceiver) (ta
 	}
 	return
 }
-
-func splitRequestPath(path string) (pieces []string, depth int, ext string) {
-	pieces, depth = make([]string, 0), 1
-	chars := []rune(path)
-	start, length := 1, len(chars)
-	dotIndex, slashIndex := -1, -1
-	for i := 1; i < length; i++ {
-		switch chars[i] {
-		case '.':
-			dotIndex = i
-		case '/':
-			slashIndex = i
-			pieces = append(pieces, string(chars[start:i]))
-			depth += 1
-			start = i + 1
-		}
-	}
-	if dotIndex > slashIndex {
-		ext = string(chars[dotIndex+1:])
-		pieces = append(pieces, string(chars[start:dotIndex]))
-	} else {
-		pieces = append(pieces, string(chars[start:]))
-	}
-	return
-}

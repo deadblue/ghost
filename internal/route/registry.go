@@ -19,15 +19,19 @@ func (r *Registry[T]) Init() *Registry[T] {
 	return r
 }
 
-func (r *Registry[T]) Mount(name string, target T) (err error) {
+func (r *Registry[T]) Mount(name string, root string, target T) (rs string, err error) {
 	// Parse method name to rule
-	rule := parser.Rule{}
+	rule := parser.Rule{IsStrict: true, Depth: 0}
+	// Set path root
+	setPathRoot(&rule, root)
+	// Parse rule
 	if err = method.Parse(name, &rule); err != nil {
 		return
 	}
 
 	if rule.IsStrict {
 		r.st.Put(rule.Method, rule.Path, target)
+		rs = rule.String()
 	} else {
 		varMap := make(map[int]string)
 		node := r.pt.GetTree(rule.Method, rule.Ext, rule.Depth)
@@ -41,13 +45,14 @@ func (r *Registry[T]) Mount(name string, target T) (err error) {
 			}
 		}
 		if node.path != "" {
-			return fmt.Errorf("conflict path: \"%s\" <=> \"%s\"", node.path, rule.Path)
+			err = fmt.Errorf("conflict path: \"%s\" <=> \"%s\"", node.path, rule.Path)
 		} else {
 			// Setup leaf node
 			node.path = rule.Path
 			node.target = target
 			node.varMap = varMap
+			rs = rule.String()
 		}
 	}
-	return nil
+	return
 }

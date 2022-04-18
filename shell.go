@@ -14,13 +14,14 @@ import (
 )
 
 /*
-Shell is the shell of the developer made ghost, it covers the basic reactions what an HTTP
-server should do, and dispatches requests to the ghost.
+Shell is the shell of your ghost, it covers the basic reactions what an HTTP
+server should do, and dispatches requests to your ghost.
 
-Developer has two ways to use the shell: manually manage the lifecycle, or just run it.
-Here are the examples of the two ways:
+You can use Shell in two ways:
 
-	// Create a shell from developer's ghost.
+1. Simply run it:
+
+	// Create a shell from your ghost.
 	shell := ghost.Born(&YourGhost{})
 
 	// Way 1: Just run the shell, wait for it shut down completely.
@@ -28,11 +29,16 @@ Here are the examples of the two ways:
 		panic(err)
 	}
 
-	// Way 2: Manually manage the lifecycle of the shell.
+2. Manage its lifecycle by yourself:
+
+	// Create a shell from your ghost.
+	shell := ghost.Born(&YourGhost{})
+
 	// Start up the shell.
 	if err := shell.Startup(); err != nil {
 		panic(err)
 	}
+	// Waiting for shell shut down.
 	for running := true; running; {
 		select {
 		case <- someEventArrived:
@@ -52,25 +58,22 @@ Here are the examples of the two ways:
 */
 type Shell interface {
 
-	// Startup starts up the shell manually, use this when you want to
-	// control the shell lifecycle by yourself.
-	// Otherwise, use Run instead.
+	// Startup starts up the shell manually, use this when you want to manage
+	// shell's lifecycle by yourself. Otherwise, just use `Run`.
 	Startup() error
 
-	// Shutdown shuts down the shell manually, use this when you want to
-	// control the shell lifecycle by yourself.
-	// Otherwise, use Run instead.
+	// Shutdown shuts down the shell manually, use this when you want to manage
+	// shell's lifecycle by yourself. Otherwise, just use Run.
 	Shutdown()
 
-	// Done returns a read-only error channel, you will get notification
-	// from it when the shell completely shutdown, use this when you
-	// control the shell lifecycle by yourself.
-	// Otherwise, use Run instead.
+	// Done returns a read-only error channel, you will get error events from it
+	// when the shell shut down, use this when you manage shell's lifecycle by
+	// yourself. Otherwise, just use Run.
 	Done() <-chan error
 
 	// Run automatically runs the shell, and shutdown it when receive specific
 	// OS signals, Run will exit after the shell completely shutdown.
-	// If no signal specified, handles SIGINT and SIGTERM as default.
+	// If no signal set, shell will handle SIGINT and SIGTERM as default.
 	Run(sig ...os.Signal) error
 }
 
@@ -82,8 +85,8 @@ type _ShellImpl struct {
 	tc *tls.Config
 	// HTTP server
 	hs *http.Server
-	// engine
-	e *_Engine
+	// kernel
+	kn *_Kernel
 	// Closed flag
 	cf int32
 	// Error channel
@@ -92,7 +95,7 @@ type _ShellImpl struct {
 
 func (s *_ShellImpl) die(err error) {
 	if atomic.CompareAndSwapInt32(&s.cf, 0, 1) {
-		_ = s.e.AfterShutdown()
+		_ = s.kn.AfterShutdown()
 		if err != nil {
 			s.errCh <- err
 		}
@@ -109,13 +112,13 @@ func (s *_ShellImpl) serve(l net.Listener) {
 
 func (s *_ShellImpl) Startup() (err error) {
 	// Call
-	if err = s.e.BeforeStartup(); err != nil {
+	if err = s.kn.BeforeStartup(); err != nil {
 		return
 	}
 	// Start network listener
 	var nl net.Listener
 	if nl, err = net.Listen(s.ln, s.la); err != nil {
-		_ = s.e.AfterShutdown()
+		_ = s.kn.AfterShutdown()
 		return
 	}
 	// For unix listener, delete it after close.
