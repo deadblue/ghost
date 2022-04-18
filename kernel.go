@@ -35,7 +35,7 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-type _Engine struct {
+type _Kernel struct {
 	// Route registry
 	rt *route.Registry[_Handler]
 
@@ -47,9 +47,9 @@ type _Engine struct {
 	eh ErrorHandler
 }
 
-func (e *_Engine) BeforeStartup() (err error) {
-	for ok := e.startupObs.GoFirst(); ok; ok = e.startupObs.Forward() {
-		_, ob := e.startupObs.Get()
+func (k *_Kernel) BeforeStartup() (err error) {
+	for ok := k.startupObs.GoFirst(); ok; ok = k.startupObs.Forward() {
+		_, ob := k.startupObs.Get()
 		if err = ob.BeforeStartup(); err != nil {
 			return
 		}
@@ -57,9 +57,9 @@ func (e *_Engine) BeforeStartup() (err error) {
 	return
 }
 
-func (e *_Engine) AfterShutdown() (err error) {
-	for ok := e.shutdownObs.GoLast(); ok; ok = e.shutdownObs.Backward() {
-		_, ob := e.shutdownObs.Get()
+func (k *_Kernel) AfterShutdown() (err error) {
+	for ok := k.shutdownObs.GoLast(); ok; ok = k.shutdownObs.Backward() {
+		_, ob := k.shutdownObs.Get()
 		if err = ob.AfterShutdown(); err != nil {
 			return
 		}
@@ -67,7 +67,7 @@ func (e *_Engine) AfterShutdown() (err error) {
 	return
 }
 
-func (e *_Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (k *_Kernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make context
 	ctx := (&context.Impl{}).FromRequest(r)
 	// Handle special request method
@@ -81,34 +81,24 @@ func (e *_Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// TODO: Handle CORS request
 	}
 	// Resolve handler
-	h := e.rt.Resolve(method, ctx.Path(), ctx)
-	v := e.dispatch(h, ctx)
-	e.renderView(ctx, v, w)
+	h := k.rt.Resolve(method, ctx.Path(), ctx)
+	v := k.dispatch(h, ctx)
+	k.renderView(ctx, v, w)
 }
 
 // dispatch calls handler with context, and catch error.
-func (e *_Engine) dispatch(h _Handler, ctx Context) (v View) {
+func (k *_Kernel) dispatch(h _Handler, ctx Context) (v View) {
 	if h == nil {
-		return e.eh.OnError(ctx, ErrNotFound)
+		return k.eh.OnError(ctx, ErrNotFound)
 	}
-	defer func() {
-		// Catch panic here
-		if r := recover(); r != nil {
-			if err, ok := r.(error); ok {
-				v = e.eh.OnError(ctx, err)
-			} else {
-				v = e.eh.OnError(ctx, fmt.Errorf("panic: %v", r))
-			}
-		}
-	}()
 	var err error
 	if v, err = h.Handle(ctx); err != nil {
-		v = e.eh.OnError(ctx, err)
+		v = k.eh.OnError(ctx, err)
 	}
 	return
 }
 
-func (e *_Engine) renderView(ctx Context, v View, w http.ResponseWriter) {
+func (k *_Kernel) renderView(ctx Context, v View, w http.ResponseWriter) {
 	// Ensure the view is not nil
 	if v == nil {
 		v = view.Http200

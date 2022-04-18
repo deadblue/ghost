@@ -1,5 +1,7 @@
 package ghost
 
+import "fmt"
+
 type _Handler interface {
 	Handle(Context) (View, error)
 }
@@ -9,7 +11,15 @@ type _HandlerImpl[R any] struct {
 	methodFn func(R, Context) (View, error)
 }
 
-func (h *_HandlerImpl[R]) Handle(ctx Context) (View, error) {
+func (h *_HandlerImpl[R]) Handle(ctx Context) (v View, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+			if err, ok = r.(error); !ok {
+				err = fmt.Errorf("panic: %v", r)
+			}
+		}
+	}()
 	return h.methodFn(h.receiver, ctx)
 }
 
